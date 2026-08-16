@@ -16,6 +16,7 @@ import {
   ChevronRight,
   FolderGit2
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Project, AnalysisResult } from '../types';
 
 interface SidebarProps {
@@ -41,83 +42,96 @@ export default function Sidebar({
       label: 'Issues', 
       icon: AlertTriangle, 
       badge: analysis ? analysis.issues.length : null,
-      badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+      badgeColor: 'bg-amber-500/15 text-amber-300 border-amber-500/30'
     },
-    { id: 'security', label: 'Security', icon: ShieldCheck },
+    { id: 'security', label: 'Security & OWASP', icon: ShieldCheck },
     { id: 'architecture', label: 'Architecture', icon: GitFork },
     { id: 'dependencies', label: 'Dependencies', icon: Package },
-    { id: 'chat', label: 'AI Chat', icon: MessageSquare },
+    { id: 'chat', label: 'AI Chat Advisor', icon: MessageSquare },
     { id: 'refactor', label: 'Refactor', icon: Zap },
     { id: 'tests', label: 'Test Gen', icon: TestTube },
     { id: 'report', label: 'Executive Report', icon: FileText },
   ];
 
   return (
-    <aside className={`bg-zinc-950 border-r border-zinc-800/80 flex flex-col justify-between select-none shrink-0 transition-all duration-200 ${isCollapsed ? 'w-16' : 'w-56'}`}>
-      <div className="p-2.5 space-y-3 overflow-y-auto">
-        {/* Toggle & Active Project Box */}
+    <aside
+      className={`sticky top-14 h-[calc(100vh-3.5rem)] bg-zinc-950 border-r border-zinc-800/80 flex flex-col justify-between select-none shrink-0 z-30 transition-all duration-300 ease-in-out ${
+        isCollapsed ? 'w-16' : 'w-60'
+      }`}
+    >
+      <div className="p-3 space-y-3 overflow-y-auto flex-1 custom-scrollbar">
+        {/* Active Project Box */}
         <div className="relative">
           {!isCollapsed ? (
-            <div className="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800/80">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest font-mono">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.2 }}
+              className="p-3 rounded-xl bg-zinc-900/90 border border-zinc-800/90 shadow-md relative overflow-hidden group"
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
                   Active Project
                 </span>
                 <button
                   onClick={() => setIsCollapsed(true)}
-                  className="p-1 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/80 transition-colors"
+                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer"
                   title="Collapse Sidebar"
                 >
                   <ChevronLeft size={14} />
                 </button>
               </div>
 
-              <div className="font-semibold text-zinc-100 text-xs truncate">
-                {project ? project.name : 'No project'}
+              <div className="font-bold text-zinc-100 text-xs truncate font-sans">
+                {project ? project.name : 'No project loaded'}
               </div>
-              <div className="flex items-center space-x-1.5 mt-1.5 text-[10px] text-zinc-400 font-mono">
+              <div className="flex items-center space-x-1.5 mt-1 text-[10px] text-zinc-400 font-mono">
                 <span>{project ? `${project.files.length} Files` : '0 Files'}</span>
                 <span>•</span>
                 <span>{project ? `${project.totalLines.toLocaleString()} Lines` : '0 Lines'}</span>
               </div>
 
-              {project && project.languages.length > 0 && (
-                <div className="mt-2 pt-1.5 border-t border-zinc-800/80 flex items-center space-x-1">
-                  {project.languages.map((lang) => (
-                    <div
-                      key={lang.name}
-                      className="h-1 rounded-full"
-                      style={{ width: `${lang.percentage}%`, backgroundColor: lang.color }}
-                      title={`${lang.name}: ${lang.percentage}%`}
-                    />
-                  ))}
+              {project && project.languages && project.languages.length > 0 && (
+                <div className="mt-2.5 pt-2 border-t border-zinc-800/80">
+                  <div className="flex h-1.5 rounded-full overflow-hidden bg-zinc-800 gap-0.5">
+                    {project.languages.map((lang) => (
+                      <div
+                        key={lang.name}
+                        className="h-full first:rounded-l-full last:rounded-r-full transition-all"
+                        style={{ width: `${lang.percentage}%`, backgroundColor: lang.color }}
+                        title={`${lang.name}: ${lang.percentage}%`}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
+            </motion.div>
           ) : (
             <div className="flex flex-col items-center space-y-2 py-1">
               <button
                 onClick={() => setIsCollapsed(false)}
-                className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors"
+                className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-indigo-500/50 hover:bg-indigo-600/10 transition-all cursor-pointer shadow-sm"
                 title="Expand Sidebar"
               >
                 <ChevronRight size={16} />
               </button>
               <div
-                className="w-8 h-8 rounded-lg bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center cursor-pointer"
-                title={project ? project.name : 'Active Project'}
+                onClick={() => onNavigate('dashboard')}
+                className="w-9 h-9 rounded-xl bg-indigo-600/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center cursor-pointer hover:bg-indigo-600/25 transition-all shadow-sm"
+                title={project ? `${project.name} (${project.files.length} files)` : 'Active Project'}
               >
-                <FolderGit2 size={16} />
+                <FolderGit2 size={18} />
               </div>
             </div>
           )}
         </div>
 
         {/* Navigation Menu */}
-        <nav className="space-y-0.5">
+        <nav className="space-y-1">
           {!isCollapsed && (
-            <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">
-              Navigation
+            <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider font-mono">
+              Workspace
             </div>
           )}
           {navItems.map((item) => {
@@ -128,20 +142,38 @@ export default function Sidebar({
                 key={item.id}
                 onClick={() => onNavigate(item.id)}
                 title={isCollapsed ? item.label : undefined}
-                className={`w-full flex items-center ${isCollapsed ? 'justify-center p-2.5' : 'justify-between px-2.5 py-1.5'} rounded-lg text-xs font-medium transition-all ${
+                className={`w-full flex items-center ${
+                  isCollapsed ? 'justify-center p-2.5' : 'justify-between px-3 py-2'
+                } rounded-xl text-xs font-medium transition-all duration-200 cursor-pointer relative group ${
                   isActive
-                    ? 'bg-indigo-600/15 text-indigo-300 border border-indigo-500/30 shadow-sm'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60 border border-transparent'
+                    ? 'bg-indigo-600/20 text-indigo-200 border border-indigo-500/40 shadow-sm font-semibold'
+                    : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/80 border border-transparent'
                 }`}
               >
-                <div className="flex items-center space-x-2">
-                  <Icon size={16} className={isActive ? 'text-indigo-400 shrink-0' : 'text-zinc-500 shrink-0'} />
-                  {!isCollapsed && <span>{item.label}</span>}
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <Icon
+                    size={16}
+                    className={`shrink-0 transition-colors ${
+                      isActive ? 'text-indigo-400' : 'text-zinc-400 group-hover:text-zinc-200'
+                    }`}
+                  />
+                  {!isCollapsed && <span className="truncate">{item.label}</span>}
                 </div>
+
                 {!isCollapsed && item.badge !== null && item.badge !== undefined && (
-                  <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold border ${item.badgeColor}`}>
+                  <span
+                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold border ${item.badgeColor}`}
+                  >
                     {item.badge}
                   </span>
+                )}
+
+                {isActive && (
+                  <motion.div
+                    layoutId="sidebarActiveIndicator"
+                    className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-500 rounded-r-full"
+                    transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                  />
                 )}
               </button>
             );
@@ -150,26 +182,29 @@ export default function Sidebar({
       </div>
 
       {/* Bottom Upload & Settings Quick Nav */}
-      <div className="p-2.5 border-t border-zinc-800/80 space-y-1.5">
+      <div className="p-3 border-t border-zinc-800/80 space-y-1.5 bg-zinc-950/80 backdrop-blur-sm">
         <button
           onClick={() => onNavigate('upload')}
           title={isCollapsed ? 'Import Codebase' : undefined}
-          className={`w-full flex items-center ${isCollapsed ? 'justify-center p-2' : 'justify-start space-x-2 py-1.5 px-2.5'} rounded-lg bg-zinc-900 border border-zinc-800/80 hover:border-zinc-700 text-zinc-300 hover:text-white text-xs font-medium transition-colors`}
+          className={`w-full flex items-center ${
+            isCollapsed ? 'justify-center p-2.5' : 'justify-start space-x-2.5 py-2 px-3'
+          } rounded-xl bg-zinc-900 border border-zinc-800 hover:border-indigo-500/40 hover:bg-zinc-800 text-zinc-200 hover:text-white text-xs font-semibold transition-all cursor-pointer shadow-sm`}
         >
-          <Upload size={14} className="text-indigo-400 shrink-0" />
-          {!isCollapsed && <span className="truncate">Import Code</span>}
+          <Upload size={15} className="text-indigo-400 shrink-0" />
+          {!isCollapsed && <span className="truncate">Import Repo / Zip</span>}
         </button>
 
         <button
           onClick={() => onNavigate('settings')}
           title={isCollapsed ? 'Settings' : undefined}
-          className={`w-full flex items-center ${isCollapsed ? 'justify-center p-2' : 'justify-start space-x-2 py-1.5 px-2.5'} rounded-lg text-zinc-400 hover:text-zinc-200 text-xs font-medium transition-colors`}
+          className={`w-full flex items-center ${
+            isCollapsed ? 'justify-center p-2.5' : 'justify-start space-x-2.5 py-2 px-3'
+          } rounded-xl text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/60 text-xs font-medium transition-colors cursor-pointer`}
         >
-          <Settings size={14} className="text-zinc-500 shrink-0" />
+          <Settings size={15} className="text-zinc-400 shrink-0" />
           {!isCollapsed && <span>Settings</span>}
         </button>
       </div>
     </aside>
   );
 }
-

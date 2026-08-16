@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
-import { Zap, Sparkles, Check, FileCode, ArrowRight } from 'lucide-react';
+import { Zap, Sparkles, Check, FileCode, ArrowRight, RefreshCw, Cpu, Layers } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Project, RefactorResult } from '../types';
 import { requestRefactor } from '../services/aiService';
 import DiffViewer from '../components/DiffViewer';
+import CustomSelect, { SelectOption } from '../components/common/CustomSelect';
+import PageHeader from '../components/common/PageHeader';
+import Badge from '../components/common/Badge';
 
 interface RefactorViewProps {
   project: Project | null;
@@ -18,6 +22,13 @@ export default function RefactorView({ project, onApplyRefactoredCode }: Refacto
   const [refactorOutput, setRefactorOutput] = useState<RefactorResult | null>(null);
 
   const activeFile = project?.files.find((f) => f.path === selectedFilePath) || project?.files[0];
+
+  const fileOptions: SelectOption[] = (project?.files || []).map((f) => ({
+    value: f.path,
+    label: f.name,
+    sublabel: f.path,
+    badge: `${f.lines} lines`,
+  }));
 
   const handleRunRefactor = async () => {
     if (!activeFile) return;
@@ -37,94 +48,106 @@ export default function RefactorView({ project, onApplyRefactoredCode }: Refacto
     }
   };
 
-  return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 select-none">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-800">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center space-x-2.5">
-            <Zap size={24} className="text-indigo-400" />
-            <span>AI Automated Code Refactoring Assistant</span>
-          </h1>
-          <p className="text-xs text-zinc-400 mt-1">
-            Optimize readability, security, cyclomatic complexity, and design patterns across repository source files.
-          </p>
-        </div>
-      </div>
+  const goals = [
+    { id: 'security', label: 'Security & Vulnerability Patching', desc: 'Isolate parameters, prevent SQLi/XSS/RCE' },
+    { id: 'performance', label: 'Performance & Memory Optimization', desc: 'Reduce async overhead, cache iterations' },
+    { id: 'readability', label: 'Clean Code & Readability', desc: 'Descriptive naming, modular functions' },
+    { id: 'complexity', label: 'Reduce Cyclomatic Complexity', desc: 'Decompose nested branches and loops' },
+    { id: 'patterns', label: 'Modern Design Patterns', desc: 'Factory, strategy, repository abstraction' },
+    { id: 'types', label: 'Strict Type Safety', desc: 'Eliminate any types, exhaustive enums' },
+  ];
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+  return (
+    <div className="p-6 sm:p-8 max-w-7xl mx-auto space-y-7 select-none font-sans">
+      {/* Header */}
+      <PageHeader
+        title="AI Automated Code Refactoring Engine"
+        subtitle="Optimize readability, security, cyclomatic complexity, and modern design patterns with Gemini AI"
+        icon={<Zap size={22} />}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Controls Column */}
-        <div className="bg-zinc-900/90 border border-zinc-800 p-6 rounded-2xl space-y-6 shadow-xl h-fit">
+        <motion.div
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.25 }}
+          className="bg-zinc-900/90 border border-zinc-800/90 p-6 rounded-2xl space-y-6 shadow-xl h-fit backdrop-blur-sm"
+        >
           <div className="space-y-2">
-            <label className="text-xs font-bold text-zinc-300 uppercase font-mono">Select Target File</label>
-            <select
+            <label className="text-xs font-bold text-zinc-300 uppercase font-mono">
+              Target Source File
+            </label>
+            <CustomSelect
+              options={fileOptions}
               value={selectedFilePath}
-              onChange={(e) => {
-                setSelectedFilePath(e.target.value);
+              onChange={(val) => {
+                setSelectedFilePath(val);
                 setRefactorOutput(null);
               }}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-200 font-mono focus:outline-none focus:border-indigo-500"
-            >
-              {project?.files.map((f) => (
-                <option key={f.path} value={f.path}>
-                  {f.path} ({f.lines} lines)
-                </option>
-              ))}
-            </select>
+              searchable
+              placeholder="Select source file"
+            />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-zinc-300 uppercase font-mono">Refactoring Objective</label>
-            <div className="space-y-2 text-xs font-mono">
-              {[
-                { id: 'security', label: 'Security & Vulnerability Patching' },
-                { id: 'performance', label: 'Performance & Memory Optimization' },
-                { id: 'readability', label: 'Clean Code & Readability' },
-                { id: 'complexity', label: 'Reduce Cyclomatic Complexity' },
-                { id: 'patterns', label: 'Modern Design Patterns' },
-                { id: 'types', label: 'Strict Type Safety' },
-              ].map((opt) => (
-                <label
-                  key={opt.id}
-                  onClick={() => setTargetGoal(opt.id)}
-                  className={`flex items-center space-x-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                    targetGoal === opt.id
-                      ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300 font-semibold'
-                      : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="goal"
-                    checked={targetGoal === opt.id}
-                    onChange={() => setTargetGoal(opt.id)}
-                    className="accent-indigo-500"
-                  />
-                  <span>{opt.label}</span>
-                </label>
-              ))}
+          <div className="space-y-2.5">
+            <label className="text-xs font-bold text-zinc-300 uppercase font-mono">
+              Refactoring Objective
+            </label>
+            <div className="space-y-2 text-xs">
+              {goals.map((opt) => {
+                const isSelected = targetGoal === opt.id;
+                return (
+                  <div
+                    key={opt.id}
+                    onClick={() => setTargetGoal(opt.id)}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all duration-200 ${
+                      isSelected
+                        ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-200 shadow-sm'
+                        : 'bg-zinc-950/80 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between font-semibold">
+                      <span>{opt.label}</span>
+                      <div
+                        className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                          isSelected ? 'border-indigo-400 bg-indigo-500' : 'border-zinc-700'
+                        }`}
+                      >
+                        {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 mt-1 font-mono">{opt.desc}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
           <button
             onClick={handleRunRefactor}
             disabled={loading}
-            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-xs rounded-xl shadow-lg shadow-indigo-600/25 flex items-center justify-center space-x-2 transition-all cursor-pointer"
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-xs rounded-xl shadow-lg shadow-indigo-600/25 flex items-center justify-center space-x-2 transition-all cursor-pointer"
           >
             {loading ? (
-              <Sparkles size={16} className="animate-spin" />
+              <RefreshCw size={15} className="animate-spin text-white" />
             ) : (
-              <Zap size={16} />
+              <Sparkles size={15} />
             )}
-            <span>{loading ? 'Refactoring with Gemini AI...' : 'Generate Refactored Version'}</span>
+            <span>{loading ? 'Refactoring with Gemini AI...' : 'Generate Refactored Code'}</span>
           </button>
-        </div>
+        </motion.div>
 
         {/* Refactored Diff & Explanation Column */}
-        <div className="md:col-span-2 space-y-6">
+        <motion.div
+          initial={{ opacity: 0, x: 10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.25 }}
+          className="lg:col-span-2 space-y-6"
+        >
           {refactorOutput ? (
-            <div className="bg-zinc-900/90 border border-zinc-800 p-6 rounded-2xl space-y-6 shadow-xl">
-              <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
+            <div className="bg-zinc-900/90 border border-zinc-800/90 p-6 rounded-2xl space-y-5 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-800">
                 <div className="flex items-center space-x-2">
                   <Sparkles size={18} className="text-indigo-400" />
                   <h3 className="font-bold text-white text-sm">Refactored Code Comparison</h3>
@@ -133,7 +156,7 @@ export default function RefactorView({ project, onApplyRefactoredCode }: Refacto
                 {onApplyRefactoredCode && (
                   <button
                     onClick={() => onApplyRefactoredCode(selectedFilePath, refactorOutput.refactoredCode)}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition-colors shadow-md"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl flex items-center space-x-1.5 transition-all shadow-md shadow-emerald-600/20 cursor-pointer"
                   >
                     <Check size={14} />
                     <span>Apply Refactor to Project</span>
@@ -142,8 +165,11 @@ export default function RefactorView({ project, onApplyRefactoredCode }: Refacto
               </div>
 
               {/* Summary / Explanation */}
-              <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 space-y-2 text-xs">
-                <div className="font-bold text-indigo-400 uppercase font-mono">Summary of Key Improvements</div>
+              <div className="p-4 bg-zinc-950/80 rounded-xl border border-zinc-800/90 space-y-1.5 text-xs">
+                <div className="font-bold text-indigo-400 uppercase font-mono text-[11px] flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                  Summary of Key Architectural Improvements
+                </div>
                 <p className="text-zinc-300 leading-relaxed font-sans">{refactorOutput.explanation}</p>
               </div>
 
@@ -151,15 +177,19 @@ export default function RefactorView({ project, onApplyRefactoredCode }: Refacto
               <DiffViewer
                 originalCode={refactorOutput.originalCode}
                 suggestedCode={refactorOutput.refactoredCode}
+                filename={selectedFilePath}
               />
             </div>
           ) : (
-            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-12 text-center text-zinc-500 font-mono text-xs space-y-2">
-              <Zap size={32} className="mx-auto text-zinc-600 mb-2" />
-              <div>Select a file and target objective, then click "Generate Refactored Version".</div>
+            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-14 text-center text-zinc-400 font-mono text-xs space-y-3">
+              <Zap size={36} className="mx-auto text-zinc-600 mb-2" />
+              <div className="text-sm font-semibold text-zinc-300">Ready to Refactor</div>
+              <p className="text-zinc-500 max-w-sm mx-auto font-sans">
+                Select any source file and an optimization objective on the left, then click "Generate Refactored Code".
+              </p>
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
     </div>
   );

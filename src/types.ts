@@ -20,13 +20,16 @@ export interface CodeIssue {
   line: number;
   confidence: number; // e.g. 0.98
   description: string;
-  whyItMatters: string;
-  potentialImpact: string;
+  whyItMatters?: string;
+  potentialImpact?: string;
   exploitationScenario?: string;
-  recommendation: string;
-  originalCode: string;
+  recommendation?: string;
+  originalCode?: string;
+  codeSnippet?: string;
+  fixedCode?: string;
   suggestedFix: string;
   status: IssueStatus;
+  cwe?: string;
   references?: string[];
 }
 
@@ -63,6 +66,11 @@ export interface IssueCounts {
   medium: number;
   low: number;
   info: number;
+  bug?: number;
+  performance?: number;
+  architecture?: number;
+  maintainability?: number;
+  security?: number;
 }
 
 export interface SecuritySummary {
@@ -162,6 +170,7 @@ export interface TestGenRequest {
 
 export interface TestGenResult {
   testCode: string;
+  framework: string;
   coverageNotes: string[];
   testCasesCount: number;
 }

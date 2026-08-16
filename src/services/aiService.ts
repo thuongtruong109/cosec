@@ -104,6 +104,7 @@ export async function requestTestGen(req: TestGenRequest): Promise<TestGenResult
 
   const data = await response.json();
   return {
+    framework: req.framework,
     testCode: data.testCode,
     coverageNotes: data.coverageNotes || [],
     testCasesCount: data.testCasesCount || 3,

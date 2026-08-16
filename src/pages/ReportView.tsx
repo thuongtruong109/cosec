@@ -1,15 +1,23 @@
-import React from 'react';
-import { FileText, Printer, Copy, Download, ShieldAlert, CheckCircle2, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { FileText, Printer, Copy, Download, ShieldAlert, CheckCircle2, AlertTriangle, Check, Share2, Image as ImageIcon } from 'lucide-react';
+import { motion } from 'motion/react';
 import { AnalysisResult } from '../types';
+import PageHeader from '../components/common/PageHeader';
+import Badge, { BadgeVariant } from '../components/common/Badge';
+import ShareExportModal from '../components/ShareExportModal';
+import { generateMarkdownReport, downloadBlob } from '../utils/exportUtils';
 
 interface ReportViewProps {
   analysis: AnalysisResult | null;
 }
 
 export default function ReportView({ analysis }: ReportViewProps) {
+  const [copied, setCopied] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
   if (!analysis) {
     return (
-      <div className="p-12 text-center text-zinc-400">
+      <div className="p-12 text-center text-zinc-400 font-mono text-xs">
         No review report available. Please upload a repository first.
       </div>
     );
@@ -20,66 +28,70 @@ export default function ReportView({ analysis }: ReportViewProps) {
   };
 
   const handleCopyMarkdown = () => {
-    const md = `# CodeLens AI Executive Review Report - ${analysis.projectName}
-Date: ${new Date(analysis.analyzedAt).toLocaleDateString()}
-Overall Health Score: ${analysis.scores.overall}/100
-
-## Summary of Findings
-- Critical: ${analysis.issueCounts.critical}
-- High: ${analysis.issueCounts.high}
-- Medium: ${analysis.issueCounts.medium}
-- Low: ${analysis.issueCounts.low}
-
-## Key Critical Findings
-${analysis.issues
-  .filter((i) => i.severity === 'critical' || i.severity === 'high')
-  .map((i) => `- [${i.severity.toUpperCase()}] ${i.title} (${i.file}:${i.line})`)
-  .join('\n')}
-`;
+    const md = generateMarkdownReport(analysis);
     navigator.clipboard.writeText(md);
-    alert('Executive Markdown copied to clipboard!');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-8 select-none print:p-0 print:bg-white print:text-black">
+    <div className="p-6 sm:p-8 max-w-5xl mx-auto space-y-7 select-none font-sans print:p-0 print:bg-white print:text-black">
       {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-800 print:hidden">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center space-x-2.5">
-            <FileText size={24} className="text-indigo-400" />
-            <span>Executive Code Review Report</span>
-          </h1>
-          <p className="text-xs text-zinc-400 mt-1">
-            Printable audit report for stakeholders, engineering leadership, and security auditors.
-          </p>
-        </div>
+      <PageHeader
+        title="Executive Code Audit Report"
+        subtitle="Auditable technical summary for engineering leadership, stakeholders, and compliance"
+        icon={<FileText size={22} />}
+        className="print:hidden"
+        actions={
+          <div className="flex items-center space-x-2.5">
+            <button
+              onClick={() => setIsShareModalOpen(true)}
+              className="px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800 text-zinc-200 font-semibold text-xs flex items-center space-x-1.5 transition-all shadow-md cursor-pointer"
+            >
+              <Share2 size={14} className="text-indigo-400" />
+              <span>Share & Export</span>
+            </button>
 
-        <div className="flex items-center space-x-2 shrink-0">
-          <button
-            onClick={handlePrint}
-            className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center space-x-1.5 transition-colors shadow-md cursor-pointer"
-          >
-            <Printer size={14} />
-            <span>Print / Export PDF</span>
-          </button>
+            <button
+              onClick={handlePrint}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center space-x-1.5 transition-all shadow-md shadow-indigo-600/20 cursor-pointer"
+            >
+              <Printer size={14} />
+              <span>Print / PDF</span>
+            </button>
 
-          <button
-            onClick={handleCopyMarkdown}
-            className="px-3.5 py-2 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer"
-          >
-            <Copy size={14} />
-            <span>Copy Markdown</span>
-          </button>
-        </div>
-      </div>
+            <button
+              onClick={handleCopyMarkdown}
+              className="px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer"
+            >
+              {copied ? (
+                <>
+                  <Check size={14} className="text-emerald-400" />
+                  <span className="text-emerald-400">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy size={14} />
+                  <span>Copy Markdown</span>
+                </>
+              )}
+            </button>
+          </div>
+        }
+      />
 
       {/* Report Document Sheet */}
-      <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-8 space-y-8 shadow-2xl print:border-none print:shadow-none print:p-0">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="bg-zinc-900/90 border border-zinc-800/90 rounded-2xl p-8 space-y-8 shadow-2xl print:border-none print:shadow-none print:p-0 backdrop-blur-sm"
+      >
         {/* Document Title Banner */}
         <div className="flex items-center justify-between pb-6 border-b border-zinc-800">
           <div>
             <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest font-mono">
-              CONFIDENTIAL CODE AUDIT
+              CONFIDENTIAL AUDIT SPECIFICATION
             </div>
             <h2 className="text-2xl font-bold text-white mt-1">{analysis.projectName}</h2>
             <p className="text-xs text-zinc-400 mt-0.5">
@@ -95,22 +107,22 @@ ${analysis.issues
 
         {/* Executive Summary Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 font-mono">
+          <div className="p-4 bg-zinc-950/80 rounded-xl border border-zinc-800 font-mono">
             <div className="text-[10px] text-zinc-500 uppercase font-bold">Security</div>
             <div className="text-xl font-bold text-rose-400 mt-1">{analysis.scores.security} / 100</div>
           </div>
 
-          <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 font-mono">
+          <div className="p-4 bg-zinc-950/80 rounded-xl border border-zinc-800 font-mono">
             <div className="text-[10px] text-zinc-500 uppercase font-bold">Reliability</div>
             <div className="text-xl font-bold text-emerald-400 mt-1">{analysis.scores.reliability} / 100</div>
           </div>
 
-          <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 font-mono">
+          <div className="p-4 bg-zinc-950/80 rounded-xl border border-zinc-800 font-mono">
             <div className="text-[10px] text-zinc-500 uppercase font-bold">Performance</div>
             <div className="text-xl font-bold text-amber-400 mt-1">{analysis.scores.performance} / 100</div>
           </div>
 
-          <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 font-mono">
+          <div className="p-4 bg-zinc-950/80 rounded-xl border border-zinc-800 font-mono">
             <div className="text-[10px] text-zinc-500 uppercase font-bold">Maintainability</div>
             <div className="text-xl font-bold text-indigo-400 mt-1">{analysis.scores.maintainability} / 100</div>
           </div>
@@ -126,7 +138,7 @@ ${analysis.issues
             {analysis.issues
               .filter((i) => i.severity === 'critical' || i.severity === 'high')
               .map((issue) => (
-                <div key={issue.id} className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-1">
+                <div key={issue.id} className="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800/80 space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-rose-400">{issue.title}</span>
                     <span className="font-mono text-zinc-500">{issue.file}:{issue.line}</span>
@@ -138,13 +150,20 @@ ${analysis.issues
         </div>
 
         {/* Technical Debt Assessment */}
-        <div className="p-5 bg-zinc-950 rounded-xl border border-zinc-800 space-y-2 text-xs">
+        <div className="p-5 bg-zinc-950/80 rounded-xl border border-zinc-800/90 space-y-2 text-xs">
           <div className="font-bold text-indigo-400 uppercase font-mono">Technical Debt Assessment</div>
-          <p className="text-zinc-300 leading-relaxed">
+          <p className="text-zinc-300 leading-relaxed font-sans">
             Estimated remediation effort: <span className="font-bold text-white font-mono">1.5 Engineering Days</span> to address all critical vulnerabilities and refactor SQL parameterization.
           </p>
         </div>
-      </div>
+      </motion.div>
+
+      {/* Share & Export Modal */}
+      <ShareExportModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        analysis={analysis}
+      />
     </div>
   );
 }

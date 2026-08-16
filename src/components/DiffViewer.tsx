@@ -1,9 +1,10 @@
 import React from 'react';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, FileCode } from 'lucide-react';
 
 interface DiffViewerProps {
   originalCode: string;
   suggestedCode: string;
+  filename?: string;
   originalTitle?: string;
   suggestedTitle?: string;
   onApplyFix?: () => void;
@@ -12,6 +13,7 @@ interface DiffViewerProps {
 export default function DiffViewer({
   originalCode,
   suggestedCode,
+  filename,
   originalTitle = 'Current Code (Vulnerable)',
   suggestedTitle = 'Recommended Code (Secure)',
   onApplyFix,
@@ -29,7 +31,14 @@ export default function DiffViewer({
 
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden text-xs font-mono my-3 shadow-xl">
-      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-zinc-800 border-b border-zinc-800 bg-zinc-900/80 px-4 py-2.5">
+      {filename && (
+        <div className="bg-zinc-900/90 px-4 py-2 border-b border-zinc-800 flex items-center space-x-2 text-zinc-300 font-sans">
+          <FileCode size={14} className="text-indigo-400" />
+          <span className="font-semibold text-xs text-white">{filename}</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-zinc-800 border-b border-zinc-800 bg-zinc-900/70 px-4 py-2.5">
         <div className="flex items-center space-x-2 text-rose-400 font-sans font-semibold">
           <span className="w-2 h-2 rounded-full bg-rose-500" />
           <span>{originalTitle}</span>
@@ -43,7 +52,7 @@ export default function DiffViewer({
           <div className="flex items-center space-x-2">
             <button
               onClick={handleCopy}
-              className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[11px] font-sans flex items-center space-x-1 transition-colors"
+              className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-[11px] font-sans flex items-center space-x-1 transition-colors cursor-pointer"
             >
               {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
@@ -51,7 +60,7 @@ export default function DiffViewer({
             {onApplyFix && (
               <button
                 onClick={onApplyFix}
-                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[11px] font-sans font-semibold flex items-center space-x-1 transition-colors shadow-sm"
+                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[11px] font-sans font-semibold flex items-center space-x-1 transition-colors shadow-sm cursor-pointer"
               >
                 <Check size={12} />
                 <span>Apply Fix</span>

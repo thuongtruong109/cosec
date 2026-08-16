@@ -1,6 +1,9 @@
 import React from 'react';
 import { Package, ShieldAlert, CheckCircle2, AlertTriangle, ExternalLink } from 'lucide-react';
+import { motion } from 'motion/react';
 import { AnalysisResult } from '../types';
+import PageHeader from '../components/common/PageHeader';
+import Badge, { BadgeVariant } from '../components/common/Badge';
 
 interface DependenciesViewProps {
   analysis: AnalysisResult | null;
@@ -9,7 +12,7 @@ interface DependenciesViewProps {
 export default function DependenciesView({ analysis }: DependenciesViewProps) {
   if (!analysis) {
     return (
-      <div className="p-12 text-center text-zinc-400">
+      <div className="p-12 text-center text-zinc-400 font-mono text-xs">
         No dependency analysis data available. Please upload a repository first.
       </div>
     );
@@ -17,42 +20,30 @@ export default function DependenciesView({ analysis }: DependenciesViewProps) {
 
   const { dependencies } = analysis;
 
-  const getRiskBadge = (risk: string) => {
-    switch (risk) {
-      case 'critical':
-      case 'high':
-        return 'bg-rose-500/10 text-rose-400 border-rose-500/30';
-      case 'medium':
-        return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-      default:
-        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
-    }
-  };
-
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 select-none">
+    <div className="p-6 sm:p-8 max-w-7xl mx-auto space-y-7 select-none font-sans">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-800">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center space-x-2.5">
-            <Package size={24} className="text-indigo-400" />
-            <span>Dependency Risk & Supply Chain Scanner</span>
-          </h1>
-          <p className="text-xs text-zinc-400 mt-1">
-            Manifest security audit for <span className="font-mono text-indigo-400">package.json</span> in repository <span className="font-mono text-zinc-200">{analysis.projectName}</span>
-          </p>
-        </div>
-
-        <div className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-mono text-zinc-300">
-          Total Packages: <span className="font-bold text-white">{dependencies.length}</span>
-        </div>
-      </div>
+      <PageHeader
+        title="Dependency Risk & Supply Chain Scanner"
+        subtitle={`Manifest security audit for package manifests in repository ${analysis.projectName}`}
+        icon={<Package size={22} />}
+        actions={
+          <div className="px-3.5 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-mono text-zinc-300">
+            Total Packages: <span className="font-bold text-white">{dependencies.length}</span>
+          </div>
+        }
+      />
 
       {/* Dependency Table */}
-      <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="bg-zinc-900/90 border border-zinc-800/90 rounded-2xl overflow-hidden shadow-xl"
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-sans">
-            <thead className="bg-zinc-950 text-zinc-500 text-[10px] uppercase font-mono border-b border-zinc-800">
+            <thead className="bg-zinc-950/80 text-zinc-400 text-[10px] uppercase font-mono border-b border-zinc-800">
               <tr>
                 <th className="px-6 py-3.5">Package Name</th>
                 <th className="px-6 py-3.5">Installed Version</th>
@@ -69,9 +60,9 @@ export default function DependenciesView({ analysis }: DependenciesViewProps) {
                   <td className="px-6 py-4 text-zinc-400">{dep.version}</td>
                   <td className="px-6 py-4 text-emerald-400 font-semibold">{dep.latestVersion || 'Up to date'}</td>
                   <td className="px-6 py-4">
-                    <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase border ${getRiskBadge(dep.riskLevel)}`}>
+                    <Badge variant={dep.riskLevel as BadgeVariant} size="xs">
                       {dep.riskLevel}
-                    </span>
+                    </Badge>
                   </td>
                   <td className="px-6 py-4 text-zinc-300">
                     {dep.vulnerability ? (
@@ -86,7 +77,7 @@ export default function DependenciesView({ analysis }: DependenciesViewProps) {
             </tbody>
           </table>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import TopNav from './components/TopNav';
 import Sidebar from './components/Sidebar';
 import LandingPage from './pages/LandingPage';
@@ -65,7 +66,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
-      {/* Top Nav Header */}
+      {/* Sticky Top Nav Header */}
       {activeView !== 'landing' && (
         <TopNav
           project={project}
@@ -76,8 +77,8 @@ export default function App() {
         />
       )}
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
+      <div className="flex flex-1 relative min-h-0">
+        {/* Sticky Sidebar */}
         {showSidebarAndNav && (
           <Sidebar
             activeView={activeView}
@@ -88,102 +89,113 @@ export default function App() {
         )}
 
         {/* Main Content Viewport */}
-        <main className="flex-1 overflow-y-auto bg-zinc-950">
-          {activeView === 'landing' && (
-            <LandingPage
-              onStartUpload={() => setActiveView('upload')}
-              onExploreDemo={() => {
-                setProject(SAMPLE_PROJECT_PAYMENT_API);
-                setAnalysis(SAMPLE_ANALYSIS_RESULT);
-                setActiveView('dashboard');
-              }}
-            />
-          )}
+        <main className="flex-1 overflow-y-auto bg-zinc-950 min-h-[calc(100vh-3.5rem)]">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeView}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="h-full"
+            >
+              {activeView === 'landing' && (
+                <LandingPage
+                  onStartUpload={() => setActiveView('upload')}
+                  onExploreDemo={() => {
+                    setProject(SAMPLE_PROJECT_PAYMENT_API);
+                    setAnalysis(SAMPLE_ANALYSIS_RESULT);
+                    setActiveView('dashboard');
+                  }}
+                />
+              )}
 
-          {activeView === 'upload' && (
-            <ProjectUpload
-              onProjectLoaded={handleProjectLoaded}
-              onStartDemo={() => {
-                setProject(SAMPLE_PROJECT_PAYMENT_API);
-                setAnalysis(SAMPLE_ANALYSIS_RESULT);
-                setActiveView('dashboard');
-              }}
-            />
-          )}
+              {activeView === 'upload' && (
+                <ProjectUpload
+                  onProjectLoaded={handleProjectLoaded}
+                  onStartDemo={() => {
+                    setProject(SAMPLE_PROJECT_PAYMENT_API);
+                    setAnalysis(SAMPLE_ANALYSIS_RESULT);
+                    setActiveView('dashboard');
+                  }}
+                />
+              )}
 
-          {activeView === 'analysis' && project && (
-            <AnalysisScreen
-              project={project}
-              onAnalysisComplete={handleAnalysisComplete}
-            />
-          )}
+              {activeView === 'analysis' && project && (
+                <AnalysisScreen
+                  project={project}
+                  onAnalysisComplete={handleAnalysisComplete}
+                />
+              )}
 
-          {activeView === 'dashboard' && (
-            <DashboardView
-              analysis={analysis}
-              onNavigateExplorer={handleNavigateToExplorer}
-              onNavigateIssues={() => setActiveView('issues')}
-            />
-          )}
+              {activeView === 'dashboard' && (
+                <DashboardView
+                  analysis={analysis}
+                  onNavigateExplorer={handleNavigateToExplorer}
+                  onNavigateIssues={() => setActiveView('issues')}
+                />
+              )}
 
-          {activeView === 'explorer' && (
-            <CodeExplorerView
-              project={project}
-              analysis={analysis}
-              initialFile={explorerTarget.file}
-              initialLine={explorerTarget.line}
-              onApplyFixToFile={handleApplyFixToFile}
-            />
-          )}
+              {activeView === 'explorer' && (
+                <CodeExplorerView
+                  project={project}
+                  analysis={analysis}
+                  initialFile={explorerTarget.file}
+                  initialLine={explorerTarget.line}
+                  onApplyFixToFile={handleApplyFixToFile}
+                />
+              )}
 
-          {activeView === 'issues' && (
-            <IssuesView
-              analysis={analysis}
-              onNavigateExplorer={handleNavigateToExplorer}
-            />
-          )}
+              {activeView === 'issues' && (
+                <IssuesView
+                  analysis={analysis}
+                  onNavigateExplorer={handleNavigateToExplorer}
+                />
+              )}
 
-          {activeView === 'security' && (
-            <SecurityView
-              analysis={analysis}
-              onNavigateExplorer={handleNavigateToExplorer}
-            />
-          )}
+              {activeView === 'security' && (
+                <SecurityView
+                  analysis={analysis}
+                  onNavigateExplorer={handleNavigateToExplorer}
+                />
+              )}
 
-          {activeView === 'architecture' && (
-            <ArchitectureView
-              analysis={analysis}
-              onAskAIAboutArchitecture={() => setActiveView('chat')}
-            />
-          )}
+              {activeView === 'architecture' && (
+                <ArchitectureView
+                  analysis={analysis}
+                  onAskAIAboutArchitecture={() => setActiveView('chat')}
+                />
+              )}
 
-          {activeView === 'dependencies' && (
-            <DependenciesView analysis={analysis} />
-          )}
+              {activeView === 'dependencies' && (
+                <DependenciesView analysis={analysis} />
+              )}
 
-          {activeView === 'chat' && (
-            <ChatView
-              project={project}
-              onNavigateFile={handleNavigateToExplorer}
-            />
-          )}
+              {activeView === 'chat' && (
+                <ChatView
+                  project={project}
+                  onNavigateFile={handleNavigateToExplorer}
+                />
+              )}
 
-          {activeView === 'refactor' && (
-            <RefactorView
-              project={project}
-              onApplyRefactoredCode={handleApplyFixToFile}
-            />
-          )}
+              {activeView === 'refactor' && (
+                <RefactorView
+                  project={project}
+                  onApplyRefactoredCode={handleApplyFixToFile}
+                />
+              )}
 
-          {activeView === 'tests' && (
-            <TestGeneratorView project={project} />
-          )}
+              {activeView === 'tests' && (
+                <TestGeneratorView project={project} />
+              )}
 
-          {activeView === 'report' && (
-            <ReportView analysis={analysis} />
-          )}
+              {activeView === 'report' && (
+                <ReportView analysis={analysis} />
+              )}
 
-          {activeView === 'settings' && <SettingsView />}
+              {activeView === 'settings' && <SettingsView />}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>
