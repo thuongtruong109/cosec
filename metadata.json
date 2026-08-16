@@ -1,0 +1,8 @@
+{
+  "name": "Remix CodeLens AI",
+  "description": "AI-powered senior code reviewer for security vulnerabilities, bugs, performance issues, and architecture analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
