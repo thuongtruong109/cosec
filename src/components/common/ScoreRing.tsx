@@ -47,7 +47,8 @@ export default function ScoreRing({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#27272a"
+          stroke="currentColor"
+          className="text-slate-200 dark:text-zinc-800"
           strokeWidth={strokeWidth}
         />
         {/* Animated fill circle */}
@@ -71,11 +72,11 @@ export default function ScoreRing({
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="text-3xl font-extrabold text-white tracking-tight"
+          className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight"
         >
           {score}
         </motion.span>
-        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest font-mono">
+        <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest font-mono">
           {label || sublabel}
         </span>
       </div>

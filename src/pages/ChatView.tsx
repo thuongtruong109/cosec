@@ -13,7 +13,7 @@ export default function ChatView({ project, onNavigateFile }: ChatViewProps) {
     {
       id: 'msg-1',
       sender: 'ai',
-      text: `Hello! I am your **CodeLens AI Assistant**. I have fully indexed the codebase for **${
+      text: `Hello! I am your **Colens AI Assistant**. I have fully indexed the codebase for **${
         project?.name || 'your repository'
       }**.\n\nYou can ask me specific questions about authentication implementation, database queries, security vulnerabilities, or refactoring strategies.`,
       timestamp: new Date().toLocaleTimeString(),

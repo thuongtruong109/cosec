@@ -27,7 +27,7 @@ export default function AnalysisScreen({ project, onAnalysisComplete }: Analysis
   ]);
 
   const [logs, setLogs] = useState<string[]>([
-    `[INIT] Booting CodeLens AI analysis engine for ${project.name}...`,
+    `[INIT] Booting Colens AI analysis engine for ${project.name}...`,
     `[AST] Loaded ${project.files.length} source code files (${project.totalLines} lines)...`,
   ]);
 

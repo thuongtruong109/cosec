@@ -307,7 +307,7 @@ ${fileSnippets}`;
 
       if (ai) {
         const fileContext = files ? files.slice(0, 10).map((f: any) => `[File: ${f.path}]\n${f.content.slice(0, 1500)}`).join('\n\n') : '';
-        const systemPrompt = `You are CodeLens AI, an expert Senior Code Reviewer and Software Architect assisting a developer.
+        const systemPrompt = `You are Colens AI, an expert Senior Code Reviewer and Software Architect assisting a developer.
 Provide clear, authoritative, developer-centric answers.
 Whenever referencing code, specify exact file paths and line numbers if possible.
 Format code snippets neatly with Markdown syntax highlighting.
@@ -329,7 +329,7 @@ ${fileContext}`;
       // Fallback AI response
       return res.json({
         success: true,
-        text: `**CodeLens AI Analysis:**\n\nRegarding your question: "${message}"\n\nIn your codebase:\n- **Authentication & Security**: Check \`src/controllers/auth.ts\` where JWT signing and user queries take place.\n- **Payment Logic**: Located in \`src/controllers/payment.ts\` which interacts with database balances.\n- **Recommendations**: Parameterize all dynamic queries, store keys in \`process.env\`, and enforce authorization checks on administrative routes.`
+        text: `**Colens AI Analysis:**\n\nRegarding your question: "${message}"\n\nIn your codebase:\n- **Authentication & Security**: Check \`src/controllers/auth.ts\` where JWT signing and user queries take place.\n- **Payment Logic**: Located in \`src/controllers/payment.ts\` which interacts with database balances.\n- **Recommendations**: Parameterize all dynamic queries, store keys in \`process.env\`, and enforce authorization checks on administrative routes.`
       });
     } catch (err: any) {
       console.error("Chat API error:", err);

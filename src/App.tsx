@@ -65,7 +65,7 @@ export default function App() {
   const showSidebarAndNav = activeView !== 'landing' && activeView !== 'analysis';
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-slate-100 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white transition-colors duration-150">
       {/* Sticky Top Nav Header */}
       {activeView !== 'landing' && (
         <TopNav
@@ -89,7 +89,7 @@ export default function App() {
         )}
 
         {/* Main Content Viewport */}
-        <main className="flex-1 overflow-y-auto bg-zinc-950 min-h-[calc(100vh-3.5rem)]">
+        <main className="flex-1 overflow-y-auto bg-slate-50/70 dark:bg-zinc-950 min-h-[calc(100vh-3.5rem)] transition-colors duration-150">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeView}
