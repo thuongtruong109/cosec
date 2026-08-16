@@ -58,8 +58,8 @@ export default function TestGeneratorView({ project }: TestGeneratorViewProps) {
     <div className="p-6 sm:p-8 max-w-7xl mx-auto space-y-7 select-none font-sans">
       {/* Header */}
       <PageHeader
-        title="AI Automated Test Suite Generator"
-        subtitle="Generate comprehensive unit and integration test suites with mock handlers and edge-case boundaries"
+        title="AI Test Suite Generator"
+        subtitle="Unit and integration test suites with edge-case validation"
         icon={<TestTube size={22} />}
       />
 
@@ -69,10 +69,10 @@ export default function TestGeneratorView({ project }: TestGeneratorViewProps) {
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.25 }}
-          className="bg-zinc-900/90 border border-zinc-800/90 p-6 rounded-2xl space-y-6 shadow-xl h-fit backdrop-blur-sm"
+          className="bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800/90 p-6 rounded-2xl space-y-6 shadow-sm dark:shadow-xl h-fit backdrop-blur-sm"
         >
           <div className="space-y-2">
-            <label className="text-xs font-bold text-zinc-300 uppercase font-mono">
+            <label className="text-xs font-bold text-slate-800 dark:text-zinc-300 uppercase font-mono">
               Select Source File
             </label>
             <CustomSelect
@@ -88,7 +88,7 @@ export default function TestGeneratorView({ project }: TestGeneratorViewProps) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold text-zinc-300 uppercase font-mono">
+            <label className="text-xs font-bold text-slate-800 dark:text-zinc-300 uppercase font-mono">
               Test Framework
             </label>
             <CustomSelect
@@ -101,7 +101,7 @@ export default function TestGeneratorView({ project }: TestGeneratorViewProps) {
           <button
             onClick={handleGenerateTests}
             disabled={loading}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-xs rounded-xl shadow-lg shadow-indigo-600/25 flex items-center justify-center space-x-2 transition-all cursor-pointer"
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-xs rounded-xl shadow-md shadow-indigo-600/25 flex items-center justify-center space-x-2 transition-all cursor-pointer"
           >
             {loading ? (
               <Sparkles size={16} className="animate-spin" />
@@ -120,11 +120,11 @@ export default function TestGeneratorView({ project }: TestGeneratorViewProps) {
           className="lg:col-span-2 space-y-6"
         >
           {testOutput ? (
-            <div className="bg-zinc-900/90 border border-zinc-800/90 p-6 rounded-2xl space-y-5 shadow-xl">
-              <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+            <div className="bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800/90 p-6 rounded-2xl space-y-5 shadow-sm dark:shadow-xl">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
                 <div className="flex items-center space-x-2">
-                  <FileCode size={18} className="text-indigo-400" />
-                  <h3 className="font-bold text-white text-sm">
+                  <FileCode size={18} className="text-indigo-600 dark:text-indigo-400" />
+                  <h3 className="font-bold text-slate-900 dark:text-white text-sm">
                     Generated Test Suite ({testOutput.framework})
                   </h3>
                 </div>
@@ -134,12 +134,12 @@ export default function TestGeneratorView({ project }: TestGeneratorViewProps) {
               </div>
 
               {/* Coverage Edge Cases */}
-              <div className="p-4 bg-zinc-950/80 rounded-xl border border-zinc-800/90 space-y-2 text-xs">
-                <div className="font-bold text-indigo-400 uppercase font-mono text-[11px] flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <div className="p-4 bg-slate-50 dark:bg-zinc-950/80 rounded-xl border border-slate-200 dark:border-zinc-800/90 space-y-2 text-xs">
+                <div className="font-bold text-indigo-600 dark:text-indigo-400 uppercase font-mono text-[11px] flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   Covered Edge Cases & Assertions ({testOutput.coverageNotes.length})
                 </div>
-                <ul className="list-disc list-inside text-zinc-300 space-y-1 font-sans">
+                <ul className="list-disc list-inside text-slate-700 dark:text-zinc-300 space-y-1 font-sans">
                   {testOutput.coverageNotes.map((note, idx) => (
                     <li key={idx} className="leading-relaxed">{note}</li>
                   ))}
@@ -155,10 +155,10 @@ export default function TestGeneratorView({ project }: TestGeneratorViewProps) {
               />
             </div>
           ) : (
-            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-14 text-center text-zinc-400 font-mono text-xs space-y-3">
-              <TestTube size={36} className="mx-auto text-zinc-600 mb-2" />
-              <div className="text-sm font-semibold text-zinc-300">Ready to Generate Tests</div>
-              <p className="text-zinc-500 max-w-sm mx-auto font-sans">
+            <div className="bg-white dark:bg-zinc-900/40 border border-slate-200 dark:border-zinc-800 rounded-2xl p-14 text-center text-slate-500 dark:text-zinc-400 font-mono text-xs space-y-3">
+              <TestTube size={36} className="mx-auto text-slate-400 dark:text-zinc-600 mb-2" />
+              <div className="text-sm font-semibold text-slate-800 dark:text-zinc-300">Ready to Generate Tests</div>
+              <p className="text-slate-500 dark:text-zinc-500 max-w-sm mx-auto font-sans">
                 Select a target file and testing framework on the left, then click "Generate Test Suite".
               </p>
             </div>

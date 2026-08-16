@@ -158,13 +158,13 @@ export default function SecurityView({ analysis, onNavigateExplorer }: SecurityV
     <div className="p-6 sm:p-8 max-w-7xl mx-auto space-y-7 select-none font-sans">
       {/* Header */}
       <PageHeader
-        title="OWASP Security Vulnerability & Exploit Simulator"
-        subtitle="Deep code audit for injection attacks, cryptographic defects, and privilege escalation vectors"
+        title="OWASP Security & Exploit Simulator"
+        subtitle="Vulnerability audit, injection vectors, and cryptographic verification"
         icon={<ShieldCheck size={22} />}
         actions={
           <button
             onClick={() => setShowRemediationModal(true)}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-lg shadow-indigo-600/20 flex items-center space-x-2 transition-all cursor-pointer"
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-md shadow-indigo-600/20 flex items-center space-x-2 transition-all cursor-pointer"
           >
             <Zap size={14} />
             <span>Remediation Roadmap</span>
@@ -173,15 +173,15 @@ export default function SecurityView({ analysis, onNavigateExplorer }: SecurityV
       />
 
       {/* OWASP Top 10 Matrix */}
-      <div className="bg-zinc-900/90 border border-zinc-800/90 rounded-2xl p-6 space-y-4 shadow-xl">
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+      <div className="bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800/90 rounded-2xl p-6 space-y-4 shadow-sm dark:shadow-xl">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
           <div className="flex items-center space-x-2">
-            <Lock size={16} className="text-indigo-400" />
-            <h2 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-              OWASP Top 10 (2025 Standard) Repository Coverage
+            <Lock size={16} className="text-indigo-600 dark:text-indigo-400" />
+            <h2 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider font-mono">
+              OWASP Top 10 Coverage
             </h2>
           </div>
-          <span className="text-[10px] text-zinc-400 font-mono">6 of 10 Evaluated</span>
+          <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono">6 of 10 Evaluated</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
@@ -191,11 +191,11 @@ export default function SecurityView({ analysis, onNavigateExplorer }: SecurityV
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, delay: idx * 0.04 }}
-              className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 flex items-center justify-between"
+              className="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-950/80 border border-slate-200 dark:border-zinc-800/80 flex items-center justify-between"
             >
               <div className="min-w-0 pr-2">
-                <div className="text-xs font-semibold text-zinc-200 truncate">{cat.title}</div>
-                <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                <div className="text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate">{cat.title}</div>
+                <div className="text-[10px] text-slate-500 dark:text-zinc-500 font-mono mt-0.5">
                   {cat.count} findings identified
                 </div>
               </div>
@@ -209,17 +209,17 @@ export default function SecurityView({ analysis, onNavigateExplorer }: SecurityV
       </div>
 
       {/* Interactive Exploit Flow Simulator */}
-      <div className="bg-zinc-900/90 border border-zinc-800/90 rounded-2xl p-6 space-y-6 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
+      <div className="bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800/90 rounded-2xl p-6 space-y-6 shadow-sm dark:shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-zinc-800">
           <div className="flex items-center space-x-2.5">
-            <Bug size={18} className="text-rose-400" />
+            <Bug size={18} className="text-rose-600 dark:text-rose-400" />
             <div>
-              <h3 className="text-sm font-bold text-white">Interactive Attack Vector Step Simulator</h3>
-              <p className="text-xs text-zinc-400">Step-by-step reproduction of discovered codebase exploits</p>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Attack Vector Step Simulator</h3>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">Step-by-step reproduction of discovered codebase exploits</p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-1.5 bg-zinc-950 p-1 rounded-xl border border-zinc-800 text-xs font-mono">
+          <div className="flex items-center space-x-1.5 bg-slate-100 dark:bg-zinc-950 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 text-xs font-mono">
             {[
               { id: 'sqli', label: 'SQL Injection' },
               { id: 'jwt', label: 'JWT Forgery' },
@@ -234,7 +234,7 @@ export default function SecurityView({ analysis, onNavigateExplorer }: SecurityV
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                   selectedExploitType === sim.id
                     ? 'bg-indigo-600 text-white font-semibold shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {sim.label}
@@ -251,11 +251,11 @@ export default function SecurityView({ analysis, onNavigateExplorer }: SecurityV
               onClick={() => setActiveSimulationStep(idx)}
               className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                 activeSimulationStep === idx
-                  ? 'bg-indigo-600/20 border-indigo-500 text-white font-semibold'
-                  : 'bg-zinc-950/80 border-zinc-800/80 text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-indigo-50 border-indigo-500 text-indigo-900 dark:bg-indigo-600/20 dark:border-indigo-500 dark:text-white font-semibold'
+                  : 'bg-slate-50 dark:bg-zinc-950/80 border-slate-200 dark:border-zinc-800/80 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
               }`}
             >
-              <div className="text-[10px] font-mono uppercase tracking-wider text-indigo-400">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                 Step 0{step.step}
               </div>
               <div className="text-xs truncate font-medium mt-0.5">{step.title}</div>
@@ -264,7 +264,7 @@ export default function SecurityView({ analysis, onNavigateExplorer }: SecurityV
         </div>
 
         {/* Current Active Step Box */}
-        <div className="p-5 rounded-xl bg-zinc-950/90 border border-zinc-800 space-y-4">
+        <div className="p-5 rounded-xl bg-slate-900 dark:bg-zinc-950/90 border border-slate-800 dark:border-zinc-800 space-y-4 text-slate-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Badge variant="critical" size="xs">
@@ -274,10 +274,10 @@ export default function SecurityView({ analysis, onNavigateExplorer }: SecurityV
                 {currentSim.steps[activeSimulationStep].title}
               </span>
             </div>
-            <span className="text-[11px] font-mono text-zinc-400">{currentSim.file}</span>
+            <span className="text-[11px] font-mono text-slate-400 dark:text-zinc-400">{currentSim.file}</span>
           </div>
 
-          <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+          <p className="text-xs text-slate-300 leading-relaxed font-sans">
             {currentSim.steps[activeSimulationStep].desc}
           </p>
 

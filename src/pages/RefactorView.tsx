@@ -61,8 +61,8 @@ export default function RefactorView({ project, onApplyRefactoredCode }: Refacto
     <div className="p-6 sm:p-8 max-w-7xl mx-auto space-y-7 select-none font-sans">
       {/* Header */}
       <PageHeader
-        title="AI Automated Code Refactoring Engine"
-        subtitle="Optimize readability, security, cyclomatic complexity, and modern design patterns with Gemini AI"
+        title="AI Code Refactoring"
+        subtitle="Automated readability, security, and architectural optimization with Gemini"
         icon={<Zap size={22} />}
       />
 
@@ -72,10 +72,10 @@ export default function RefactorView({ project, onApplyRefactoredCode }: Refacto
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.25 }}
-          className="bg-zinc-900/90 border border-zinc-800/90 p-6 rounded-2xl space-y-6 shadow-xl h-fit backdrop-blur-sm"
+          className="bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800/90 p-6 rounded-2xl space-y-6 shadow-sm dark:shadow-xl h-fit backdrop-blur-sm"
         >
           <div className="space-y-2">
-            <label className="text-xs font-bold text-zinc-300 uppercase font-mono">
+            <label className="text-xs font-bold text-slate-800 dark:text-zinc-300 uppercase font-mono">
               Target Source File
             </label>
             <CustomSelect
@@ -91,7 +91,7 @@ export default function RefactorView({ project, onApplyRefactoredCode }: Refacto
           </div>
 
           <div className="space-y-2.5">
-            <label className="text-xs font-bold text-zinc-300 uppercase font-mono">
+            <label className="text-xs font-bold text-slate-800 dark:text-zinc-300 uppercase font-mono">
               Refactoring Objective
             </label>
             <div className="space-y-2 text-xs">
@@ -103,21 +103,21 @@ export default function RefactorView({ project, onApplyRefactoredCode }: Refacto
                     onClick={() => setTargetGoal(opt.id)}
                     className={`p-3 rounded-xl border cursor-pointer transition-all duration-200 ${
                       isSelected
-                        ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-200 shadow-sm'
-                        : 'bg-zinc-950/80 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                        ? 'bg-indigo-50 border-indigo-500 text-indigo-900 dark:bg-indigo-600/20 dark:border-indigo-500/50 dark:text-indigo-200 shadow-sm'
+                        : 'bg-slate-50 dark:bg-zinc-950/80 border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:border-slate-300 dark:hover:border-zinc-700'
                     }`}
                   >
                     <div className="flex items-center justify-between font-semibold">
                       <span>{opt.label}</span>
                       <div
                         className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                          isSelected ? 'border-indigo-400 bg-indigo-500' : 'border-zinc-700'
+                          isSelected ? 'border-indigo-500 bg-indigo-600 dark:border-indigo-400 dark:bg-indigo-500' : 'border-slate-300 dark:border-zinc-700'
                         }`}
                       >
                         {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
                       </div>
                     </div>
-                    <p className="text-[11px] text-zinc-400 mt-1 font-mono">{opt.desc}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1 font-mono">{opt.desc}</p>
                   </div>
                 );
               })}
@@ -127,7 +127,7 @@ export default function RefactorView({ project, onApplyRefactoredCode }: Refacto
           <button
             onClick={handleRunRefactor}
             disabled={loading}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-xs rounded-xl shadow-lg shadow-indigo-600/25 flex items-center justify-center space-x-2 transition-all cursor-pointer"
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-xs rounded-xl shadow-md shadow-indigo-600/25 flex items-center justify-center space-x-2 transition-all cursor-pointer"
           >
             {loading ? (
               <RefreshCw size={15} className="animate-spin text-white" />
@@ -146,11 +146,11 @@ export default function RefactorView({ project, onApplyRefactoredCode }: Refacto
           className="lg:col-span-2 space-y-6"
         >
           {refactorOutput ? (
-            <div className="bg-zinc-900/90 border border-zinc-800/90 p-6 rounded-2xl space-y-5 shadow-xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-800">
+            <div className="bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800/90 p-6 rounded-2xl space-y-5 shadow-sm dark:shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-zinc-800">
                 <div className="flex items-center space-x-2">
-                  <Sparkles size={18} className="text-indigo-400" />
-                  <h3 className="font-bold text-white text-sm">Refactored Code Comparison</h3>
+                  <Sparkles size={18} className="text-indigo-600 dark:text-indigo-400" />
+                  <h3 className="font-bold text-slate-900 dark:text-white text-sm">Refactored Code Comparison</h3>
                 </div>
 
                 {onApplyRefactoredCode && (
@@ -165,12 +165,12 @@ export default function RefactorView({ project, onApplyRefactoredCode }: Refacto
               </div>
 
               {/* Summary / Explanation */}
-              <div className="p-4 bg-zinc-950/80 rounded-xl border border-zinc-800/90 space-y-1.5 text-xs">
-                <div className="font-bold text-indigo-400 uppercase font-mono text-[11px] flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                  Summary of Key Architectural Improvements
+              <div className="p-4 bg-slate-50 dark:bg-zinc-950/80 rounded-xl border border-slate-200 dark:border-zinc-800/90 space-y-1.5 text-xs">
+                <div className="font-bold text-indigo-600 dark:text-indigo-400 uppercase font-mono text-[11px] flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                  Key Architectural Improvements
                 </div>
-                <p className="text-zinc-300 leading-relaxed font-sans">{refactorOutput.explanation}</p>
+                <p className="text-slate-700 dark:text-zinc-300 leading-relaxed font-sans">{refactorOutput.explanation}</p>
               </div>
 
               {/* Diff Viewer */}
@@ -181,10 +181,10 @@ export default function RefactorView({ project, onApplyRefactoredCode }: Refacto
               />
             </div>
           ) : (
-            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-14 text-center text-zinc-400 font-mono text-xs space-y-3">
-              <Zap size={36} className="mx-auto text-zinc-600 mb-2" />
-              <div className="text-sm font-semibold text-zinc-300">Ready to Refactor</div>
-              <p className="text-zinc-500 max-w-sm mx-auto font-sans">
+            <div className="bg-white dark:bg-zinc-900/40 border border-slate-200 dark:border-zinc-800 rounded-2xl p-14 text-center text-slate-500 dark:text-zinc-400 font-mono text-xs space-y-3">
+              <Zap size={36} className="mx-auto text-slate-400 dark:text-zinc-600 mb-2" />
+              <div className="text-sm font-semibold text-slate-800 dark:text-zinc-300">Ready to Refactor</div>
+              <p className="text-slate-500 dark:text-zinc-500 max-w-sm mx-auto font-sans">
                 Select any source file and an optimization objective on the left, then click "Generate Refactored Code".
               </p>
             </div>

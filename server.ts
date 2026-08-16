@@ -449,6 +449,508 @@ describe('${filePath || 'Component / Module Test'}', () => {
     }
   });
 
+  // -------------------------------------------------------------
+  // API ROUTES: GitHub OAuth, Repositories, Import & Push Fixes
+  // -------------------------------------------------------------
+  
+  // 1. Get GitHub OAuth Authorization URL
+  app.get("/api/auth/github/url", (req, res) => {
+    const clientId = process.env.GITHUB_CLIENT_ID;
+    const appUrl = process.env.APP_URL || (req.headers.origin as string) || 'http://localhost:3000';
+    const redirectUri = `${appUrl.replace(/\/$/, '')}/auth/callback`;
+
+    if (!clientId) {
+      return res.json({
+        configured: false,
+        url: null,
+        redirectUri,
+        message: "GitHub Client ID is not configured in environment variables."
+      });
+    }
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      scope: 'repo,read:user,user:email',
+      state: Math.random().toString(36).substring(7)
+    });
+
+    const authUrl = `https://github.com/login/oauth/authorize?${params.toString()}`;
+    return res.json({
+      configured: true,
+      url: authUrl,
+      redirectUri
+    });
+  });
+
+  // 2. GitHub OAuth Callback Handler (Popup receiver)
+  const githubCallbackHandler = async (req: express.Request, res: express.Response) => {
+    const { code, error, error_description } = req.query;
+    const clientId = process.env.GITHUB_CLIENT_ID;
+    const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+    const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}` || 'http://localhost:3000';
+    const redirectUri = `${appUrl.replace(/\/$/, '')}/auth/callback`;
+
+    if (error || !code) {
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head><title>GitHub Login Failed</title></head>
+          <body style="font-family:system-ui,-apple-system,sans-serif;background:#09090b;color:#f43f5e;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+            <div style="text-align:center;padding:24px;border:1px solid #e11d4833;border-radius:16px;background:#18181b;">
+              <h3 style="margin-top:0;">GitHub Authorization Failed</h3>
+              <p style="color:#a1a1aa;font-size:13px;">${error_description || error || 'No authorization code received.'}</p>
+              <script>
+                if (window.opener) {
+                  window.opener.postMessage({ type: 'GITHUB_OAUTH_ERROR', error: '${error_description || error || 'Authentication failed'}' }, '*');
+                  setTimeout(() => window.close(), 2500);
+                }
+              </script>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
+    try {
+      // Exchange code for token with GitHub
+      const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'ColensAI-App'
+        },
+        body: JSON.stringify({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code,
+          redirect_uri: redirectUri
+        })
+      });
+
+      const tokenData = await tokenRes.json();
+
+      if (tokenData.error || !tokenData.access_token) {
+        throw new Error(tokenData.error_description || tokenData.error || 'Failed to obtain access token');
+      }
+
+      // Fetch authenticated user profile
+      const userRes = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `Bearer ${tokenData.access_token}`,
+          'User-Agent': 'ColensAI-App'
+        }
+      });
+      const userData = await userRes.json();
+
+      // Return clean callback message to opener window
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head><title>GitHub Authentication Successful</title></head>
+          <body style="font-family:system-ui,-apple-system,sans-serif;background:#09090b;color:#e4e4e7;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+            <div style="text-align:center;padding:24px;border:1px solid #6366f140;border-radius:16px;background:#18181b;max-width:320px;">
+              <div style="width:48px;height:48px;border-radius:50%;background:#6366f120;border:1px solid #6366f1;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:#818cf8;font-size:20px;">✓</div>
+              <h3 style="margin:0 0 6px;color:#ffffff;font-size:16px;">Welcome, ${userData.name || userData.login}!</h3>
+              <p style="color:#a1a1aa;font-size:12px;margin:0;">Authentication successful. Syncing with Colens AI...</p>
+              <script>
+                if (window.opener) {
+                  window.opener.postMessage({
+                    type: 'GITHUB_OAUTH_SUCCESS',
+                    token: ${JSON.stringify(tokenData.access_token)},
+                    user: ${JSON.stringify(userData)}
+                  }, '*');
+                  setTimeout(() => window.close(), 600);
+                } else {
+                  window.location.href = '/';
+                }
+              </script>
+            </div>
+          </body>
+        </html>
+      `);
+    } catch (err: any) {
+      console.error("OAuth exchange error:", err);
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+          <body style="font-family:system-ui;background:#09090b;color:#f43f5e;padding:40px;text-align:center;">
+            <h3>OAuth Token Exchange Error</h3>
+            <p style="color:#a1a1aa;">${err.message}</p>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({ type: 'GITHUB_OAUTH_ERROR', error: ${JSON.stringify(err.message)} }, '*');
+                setTimeout(() => window.close(), 3000);
+              }
+            </script>
+          </body>
+        </html>
+      `);
+    }
+  };
+
+  app.get(['/auth/callback', '/auth/callback/'], githubCallbackHandler);
+
+  // 3. Get Authenticated User Repositories
+  app.get("/api/github/repos", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.replace('Bearer ', '') || (req.query.token as string);
+
+      if (!token) {
+        return res.status(401).json({ error: "Missing GitHub access token" });
+      }
+
+      const reposRes = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner,collaborator,organization_member', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ColensAI-App',
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+
+      if (!reposRes.ok) {
+        const errJson = await reposRes.json().catch(() => ({}));
+        return res.status(reposRes.status).json({ error: errJson.message || "Failed to fetch GitHub repositories" });
+      }
+
+      const repos = await reposRes.json();
+      return res.json({ success: true, repos });
+    } catch (err: any) {
+      console.error("Fetch repos error:", err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 4. Verify GitHub Token and get User Profile
+  app.get("/api/github/user", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.replace('Bearer ', '') || (req.query.token as string);
+
+      if (!token) {
+        return res.status(401).json({ error: "Missing GitHub access token" });
+      }
+
+      const userRes = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ColensAI-App',
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+
+      if (!userRes.ok) {
+        const errJson = await userRes.json().catch(() => ({}));
+        return res.status(userRes.status).json({ error: errJson.message || "Invalid token or authentication expired" });
+      }
+
+      const user = await userRes.json();
+      return res.json({ success: true, user });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 5. Import Repository Files for Analysis
+  app.post("/api/github/import-repo", async (req, res) => {
+    try {
+      const { owner, repo, branch, token } = req.body;
+      const authToken = token || req.headers.authorization?.replace('Bearer ', '');
+
+      if (!owner || !repo) {
+        return res.status(400).json({ error: "Missing repo owner or repository name" });
+      }
+
+      const headers: Record<string, string> = {
+        'User-Agent': 'ColensAI-App',
+        'Accept': 'application/vnd.github.v3+json'
+      };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      // 1. Get repository metadata & default branch if not supplied
+      const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+      if (!repoRes.ok) {
+        const err = await repoRes.json().catch(() => ({}));
+        return res.status(repoRes.status).json({ error: err.message || `Repository ${owner}/${repo} not accessible.` });
+      }
+      const repoData = await repoRes.json();
+      const targetBranch = branch || repoData.default_branch || 'main';
+
+      // 2. Fetch Git Tree recursively
+      const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${targetBranch}?recursive=1`, { headers });
+      if (!treeRes.ok) {
+        const err = await treeRes.json().catch(() => ({}));
+        return res.status(treeRes.status).json({ error: err.message || `Could not fetch file tree for branch ${targetBranch}` });
+      }
+      const treeData = await treeRes.json();
+
+      if (!treeData.tree || !Array.isArray(treeData.tree)) {
+        return res.status(400).json({ error: "No files found in repository tree." });
+      }
+
+      // Valid extensions for code review
+      const codeExtensions = new Set([
+        'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'py', 'java', 'go', 'rs', 'c', 'cpp',
+        'h', 'hpp', 'cs', 'php', 'rb', 'kt', 'kts', 'swift', 'sql', 'json', 'yaml', 'yml',
+        'env.example', 'dockerfile', 'sh', 'html', 'css', 'scss'
+      ]);
+
+      const ignoredFolders = ['node_modules', 'dist', 'build', '.git', '.next', '.nuxt', 'coverage', 'vendor', '__pycache__', '.idea', '.vscode'];
+
+      // Filter blobs
+      const validBlobs = treeData.tree.filter((item: any) => {
+        if (item.type !== 'blob') return false;
+        const filePath = item.path.toLowerCase();
+        
+        // Skip ignored directories
+        if (ignoredFolders.some(folder => filePath.includes(`/${folder}/`) || filePath.startsWith(`${folder}/`))) {
+          return false;
+        }
+
+        // Skip lockfiles and huge assets
+        if (filePath.includes('lock.json') || filePath.includes('lock.yaml') || filePath.includes('.min.js') || filePath.includes('.map')) {
+          return false;
+        }
+
+        const ext = filePath.split('.').pop() || '';
+        return codeExtensions.has(ext) || filePath.endsWith('dockerfile');
+      });
+
+      // Limit to top 35 essential files for prompt & AST efficiency
+      const selectedBlobs = validBlobs.slice(0, 35);
+      const files: any[] = [];
+      let totalLines = 0;
+      const langCounts: Record<string, number> = {};
+
+      const detectLang = (p: string): string => {
+        const ext = p.split('.').pop()?.toLowerCase() || '';
+        if (['ts', 'tsx'].includes(ext)) return 'TypeScript';
+        if (['js', 'jsx', 'mjs'].includes(ext)) return 'JavaScript';
+        if (ext === 'py') return 'Python';
+        if (ext === 'java') return 'Java';
+        if (ext === 'go') return 'Go';
+        if (ext === 'rs') return 'Rust';
+        if (['cpp', 'c', 'h', 'hpp'].includes(ext)) return 'C/C++';
+        if (ext === 'cs') return 'C#';
+        if (ext === 'php') return 'PHP';
+        if (ext === 'rb') return 'Ruby';
+        if (ext === 'sql') return 'SQL';
+        if (['json', 'yaml', 'yml'].includes(ext)) return 'Config';
+        return 'Code';
+      };
+
+      // Fetch file contents in parallel batches of 6
+      const batchSize = 6;
+      for (let i = 0; i < selectedBlobs.length; i += batchSize) {
+        const batch = selectedBlobs.slice(i, i + batchSize);
+        await Promise.all(
+          batch.map(async (blob: any) => {
+            try {
+              const fileRes = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${targetBranch}/${blob.path}`, {
+                headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
+              });
+              
+              let content = '';
+              if (fileRes.ok) {
+                content = await fileRes.text();
+              } else {
+                // Fallback to GitHub API contents
+                const apiRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${blob.path}?ref=${targetBranch}`, { headers });
+                if (apiRes.ok) {
+                  const apiData = await apiRes.json();
+                  if (apiData.content) {
+                    content = Buffer.from(apiData.content, 'base64').toString('utf-8');
+                  }
+                }
+              }
+
+              if (content) {
+                const lines = content.split('\n').length;
+                const lang = detectLang(blob.path);
+                totalLines += lines;
+                langCounts[lang] = (langCounts[lang] || 0) + lines;
+
+                files.push({
+                  path: blob.path,
+                  name: blob.path.split('/').pop() || blob.path,
+                  content: content.slice(0, 100000), // safety ceiling
+                  language: lang,
+                  size: blob.size || content.length,
+                  lines
+                });
+              }
+            } catch (err) {
+              console.warn(`Failed to fetch file ${blob.path}:`, err);
+            }
+          })
+        );
+      }
+
+      // Calculate languages breakdown
+      const languages = Object.entries(langCounts).map(([name, count]) => {
+        const pct = Math.round((count / Math.max(1, totalLines)) * 100);
+        let color = '#6366f1';
+        if (name === 'TypeScript') color = '#3178c6';
+        if (name === 'JavaScript') color = '#f7df1e';
+        if (name === 'Python') color = '#3776ab';
+        if (name === 'Java') color = '#b07219';
+        if (name === 'Go') color = '#00add8';
+        if (name === 'Rust') color = '#dea584';
+        if (name === 'SQL') color = '#e38c00';
+        return { name, percentage: pct, color };
+      }).sort((a, b) => b.percentage - a.percentage);
+
+      const project = {
+        id: `gh-${owner}-${repo}-${Date.now()}`,
+        name: repoData.name,
+        description: repoData.description || `Imported from GitHub: ${owner}/${repo} (${targetBranch})`,
+        uploadedAt: new Date().toISOString(),
+        files,
+        languages: languages.length > 0 ? languages : [{ name: 'TypeScript', percentage: 100, color: '#3178c6' }],
+        totalLines
+      };
+
+      return res.json({
+        success: true,
+        project,
+        repoInfo: {
+          fullName: repoData.full_name,
+          defaultBranch: targetBranch,
+          isPrivate: repoData.private,
+          stars: repoData.stargazers_count,
+          url: repoData.html_url
+        }
+      });
+    } catch (err: any) {
+      console.error("Import repo error:", err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 6. Push Fixed Code / Create Pull Request to GitHub
+  app.post("/api/github/push-fix", async (req, res) => {
+    try {
+      const { owner, repo, baseBranch, targetBranch, commitMessage, createPullRequest, prTitle, prBody, changes } = req.body;
+      const authToken = req.headers.authorization?.replace('Bearer ', '') || req.body.token;
+
+      if (!authToken) {
+        return res.status(401).json({ error: "Missing GitHub access token to push code" });
+      }
+
+      if (!owner || !repo || !changes || !Array.isArray(changes) || changes.length === 0) {
+        return res.status(400).json({ error: "Missing required parameters (owner, repo, changes)" });
+      }
+
+      const headers = {
+        'Authorization': `Bearer ${authToken}`,
+        'User-Agent': 'ColensAI-App',
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      };
+
+      // 1. Resolve base branch and its latest commit SHA
+      const base = baseBranch || 'main';
+      const branchName = targetBranch || `colens-ai-fix-${Date.now().toString(36)}`;
+
+      const refRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${base}`, { headers });
+      if (!refRes.ok) {
+        const err = await refRes.json().catch(() => ({}));
+        return res.status(refRes.status).json({ error: `Base branch '${base}' not found: ${err.message}` });
+      }
+      const refData = await refRes.json();
+      const baseCommitSha = refData.object.sha;
+
+      // 2. Create the target fix branch if it doesn't exist
+      const createBranchRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          ref: `refs/heads/${branchName}`,
+          sha: baseCommitSha
+        })
+      });
+
+      // If branch already exists (422), that's fine, we will commit to it
+      if (!createBranchRes.ok && createBranchRes.status !== 422) {
+        const err = await createBranchRes.json().catch(() => ({}));
+        return res.status(createBranchRes.status).json({ error: `Could not create branch '${branchName}': ${err.message}` });
+      }
+
+      // 3. Update files on the branch
+      for (const change of changes) {
+        // Check if file currently exists on the branch to get its SHA
+        let fileSha: string | undefined;
+        try {
+          const fileInfoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${change.path}?ref=${branchName}`, { headers });
+          if (fileInfoRes.ok) {
+            const fileInfo = await fileInfoRes.json();
+            fileSha = fileInfo.sha;
+          }
+        } catch {
+          // New file
+        }
+
+        const updateRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${change.path}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({
+            message: commitMessage || `fix: apply security and architecture patch from Colens AI`,
+            content: Buffer.from(change.content).toString('base64'),
+            branch: branchName,
+            ...(fileSha ? { sha: fileSha } : {})
+          })
+        });
+
+        if (!updateRes.ok) {
+          const err = await updateRes.json().catch(() => ({}));
+          console.warn(`Failed to commit file ${change.path}:`, err);
+        }
+      }
+
+      let pullRequestUrl: string | undefined;
+      let pullRequestNumber: number | undefined;
+
+      // 4. Optionally create a Pull Request
+      if (createPullRequest) {
+        const prRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            title: prTitle || `🛡️ Fix security vulnerabilities and code quality [Colens AI]`,
+            body: prBody || `### 🤖 Colens AI Code Review Remediation\n\nThis Pull Request applies verified automated patches for detected security and architecture issues:\n- Parameterized dynamic database queries (CWE-89 mitigation)\n- Enforced secure authentication headers\n- Resolved asynchronous lifecycle & resource handling\n\n*Generated by [Colens AI](https://github.com)*`,
+            head: branchName,
+            base: base
+          })
+        });
+
+        if (prRes.ok) {
+          const prData = await prRes.json();
+          pullRequestUrl = prData.html_url;
+          pullRequestNumber = prData.number;
+        } else {
+          const err = await prRes.json().catch(() => ({}));
+          console.warn("PR creation notice:", err);
+        }
+      }
+
+      return res.json({
+        success: true,
+        branch: branchName,
+        commitUrl: `https://github.com/${owner}/${repo}/tree/${branchName}`,
+        pullRequestUrl,
+        pullRequestNumber,
+        message: `Successfully pushed patches to branch '${branchName}'${pullRequestUrl ? ' and opened Pull Request' : ''}!`
+      });
+    } catch (err: any) {
+      console.error("Push fix error:", err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   // Serve Vite in dev, static files in prod
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

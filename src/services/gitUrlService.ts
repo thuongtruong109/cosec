@@ -77,18 +77,30 @@ async function fetchGitHubRepo(
   branch: string,
   onProgress?: (msg: string) => void
 ): Promise<FetchRepoResult> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('colens_github_token') : null;
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github.v3+json'
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   // First try fetching branch tree
   let treeItems: any[] = [];
   let usedBranch = branch;
 
   try {
     onProgress?.(`Fetching directory tree for ${owner}/${repo} (${usedBranch})...`);
-    let res = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${usedBranch}?recursive=1`);
+    let res = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${usedBranch}?recursive=1`, {
+      headers
+    });
     
     // If branch main fails, try master
     if (!res.ok && usedBranch === 'main') {
       usedBranch = 'master';
-      res = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${usedBranch}?recursive=1`);
+      res = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${usedBranch}?recursive=1`, {
+        headers
+      });
     }
 
     if (!res.ok) {

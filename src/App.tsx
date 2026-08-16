@@ -149,6 +149,7 @@ export default function App() {
               {activeView === 'issues' && (
                 <IssuesView
                   analysis={analysis}
+                  project={project}
                   onNavigateExplorer={handleNavigateToExplorer}
                 />
               )}

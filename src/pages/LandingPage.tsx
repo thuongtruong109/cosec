@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ThemeToggle from '../components/common/ThemeToggle';
+import GitHubUserMenu from '../components/GitHubUserMenu';
 
 interface LandingPageProps {
   onStartUpload: () => void;
@@ -58,8 +59,9 @@ export default function LandingPage({ onStartUpload, onExploreDemo }: LandingPag
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2.5 sm:space-x-3">
           <ThemeToggle showDropdown={true} />
+          <GitHubUserMenu onOpenRepoSelect={onStartUpload} compact={true} />
           <button
             onClick={onExploreDemo}
             className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800/60 transition-colors cursor-pointer"
@@ -68,7 +70,7 @@ export default function LandingPage({ onStartUpload, onExploreDemo }: LandingPag
           </button>
           <button
             onClick={onStartUpload}
-            className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all shadow-md shadow-indigo-600/20 flex items-center space-x-1.5 cursor-pointer"
+            className="px-3.5 sm:px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all shadow-md shadow-indigo-600/20 flex items-center space-x-1.5 cursor-pointer"
           >
             <span>Analyze Code</span>
             <ArrowRight size={13} />

@@ -60,11 +60,11 @@ export default function ArchitectureView({
   const getStatusBorder = (status: string) => {
     switch (status) {
       case 'critical':
-        return 'border-rose-500/40 bg-rose-950/20 text-rose-300';
+        return 'border-rose-500/40 bg-rose-50 dark:bg-rose-950/20 text-rose-800 dark:text-rose-300';
       case 'warning':
-        return 'border-amber-500/40 bg-amber-950/20 text-amber-300';
+        return 'border-amber-500/40 bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300';
       default:
-        return 'border-zinc-800 bg-zinc-900/90 text-zinc-200';
+        return 'border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/90 text-slate-800 dark:text-zinc-200';
     }
   };
 
@@ -80,13 +80,13 @@ export default function ArchitectureView({
     <div className="p-6 sm:p-8 max-w-7xl mx-auto space-y-7 select-none font-sans">
       {/* Header */}
       <PageHeader
-        title="System Topology & Component Coupling Matrix"
-        subtitle={`Architectural pipeline and module boundary analysis for ${analysis.projectName}`}
+        title="System Topology & Coupling"
+        subtitle={`Module boundary analysis for ${analysis.projectName}`}
         icon={<GitFork size={22} />}
         actions={
           <button
             onClick={onAskAIAboutArchitecture}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all shadow-lg shadow-indigo-600/20 flex items-center space-x-2 cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all shadow-md shadow-indigo-600/20 flex items-center space-x-2 cursor-pointer"
           >
             <MessageSquare size={14} />
             <span>Consult AI Architect</span>
@@ -95,13 +95,13 @@ export default function ArchitectureView({
       />
 
       {/* Visual Architecture Flow Diagram */}
-      <div className="bg-zinc-900/90 border border-zinc-800/90 rounded-2xl p-6 space-y-5 shadow-xl">
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-          <div className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-            <Boxes size={15} className="text-indigo-400" />
+      <div className="bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800/90 rounded-2xl p-6 space-y-5 shadow-sm dark:shadow-xl">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+          <div className="text-xs font-mono font-bold text-slate-800 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+            <Boxes size={15} className="text-indigo-600 dark:text-indigo-400" />
             <span>Architectural Layer Topology</span>
           </div>
-          <span className="text-[11px] text-zinc-400 font-mono">Frontend → Gateway → Microservices → Database</span>
+          <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono">Frontend → Gateway → Microservices → Database</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative">
@@ -118,10 +118,10 @@ export default function ArchitectureView({
                 <div
                   className={`p-4 rounded-xl border ${getStatusBorder(
                     node.status
-                  )} space-y-3 shadow-lg transition-all`}
+                  )} space-y-3 shadow-sm dark:shadow-lg transition-all`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center text-indigo-400">
+                    <div className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
                       <Icon size={16} />
                     </div>
                     {node.issuesCount > 0 && (
@@ -132,13 +132,13 @@ export default function ArchitectureView({
                   </div>
 
                   <div>
-                    <h4 className="font-bold text-white text-xs">{node.label}</h4>
-                    <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">{node.details}</p>
+                    <h4 className="font-bold text-slate-900 dark:text-white text-xs">{node.label}</h4>
+                    <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">{node.details}</p>
                   </div>
                 </div>
 
                 {index < 3 && (
-                  <div className="hidden lg:flex absolute top-1/2 -right-3 -translate-y-1/2 text-zinc-600 z-20 pointer-events-none">
+                  <div className="hidden lg:flex absolute top-1/2 -right-3 -translate-y-1/2 text-slate-400 dark:text-zinc-600 z-20 pointer-events-none">
                     <ArrowRight size={16} />
                   </div>
                 )}
@@ -149,20 +149,20 @@ export default function ArchitectureView({
       </div>
 
       {/* Module Boundary Coupling Matrix */}
-      <div className="bg-zinc-900/90 border border-zinc-800/90 rounded-2xl p-6 space-y-4 shadow-xl">
-        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+      <div className="bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800/90 rounded-2xl p-6 space-y-4 shadow-sm dark:shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
           <div className="flex items-center space-x-2">
-            <Network size={16} className="text-indigo-400" />
-            <h3 className="font-bold text-white text-xs font-mono uppercase tracking-wider">
+            <Network size={16} className="text-indigo-600 dark:text-indigo-400" />
+            <h3 className="font-bold text-slate-900 dark:text-white text-xs font-mono uppercase tracking-wider">
               Module Boundary Coupling Matrix
             </h3>
           </div>
-          <span className="text-[11px] text-zinc-400 font-mono">5 Inter-Module Edge Connections</span>
+          <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono">5 Inter-Module Edge Connections</span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-sans">
-            <thead className="bg-zinc-950/80 text-zinc-400 text-[10px] uppercase font-mono border-b border-zinc-800">
+            <thead className="bg-slate-50 dark:bg-zinc-950/80 text-slate-600 dark:text-zinc-400 text-[10px] uppercase font-mono border-b border-slate-200 dark:border-zinc-800">
               <tr>
                 <th className="px-4 py-2.5">Source Component</th>
                 <th className="px-4 py-2.5">Target Dependency</th>
@@ -170,18 +170,18 @@ export default function ArchitectureView({
                 <th className="px-4 py-2.5">Architectural Risk</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/60 font-mono text-[11px]">
+            <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/60 font-mono text-[11px]">
               {dependencyMatrix.map((item, idx) => (
                 <tr
                   key={idx}
                   onClick={() => setSelectedMatrixNode(item.source)}
-                  className={`hover:bg-zinc-800/40 cursor-pointer transition-colors ${
-                    selectedMatrixNode === item.source ? 'bg-indigo-950/20' : ''
+                  className={`hover:bg-slate-50 dark:hover:bg-zinc-800/40 cursor-pointer transition-colors ${
+                    selectedMatrixNode === item.source ? 'bg-indigo-50 dark:bg-indigo-950/20' : ''
                   }`}
                 >
-                  <td className="px-4 py-2.5 text-white font-bold">{item.source}</td>
-                  <td className="px-4 py-2.5 text-indigo-300">→ {item.target}</td>
-                  <td className="px-4 py-2.5 text-zinc-400">{item.strength}</td>
+                  <td className="px-4 py-2.5 text-slate-900 dark:text-white font-bold">{item.source}</td>
+                  <td className="px-4 py-2.5 text-indigo-600 dark:text-indigo-300">→ {item.target}</td>
+                  <td className="px-4 py-2.5 text-slate-500 dark:text-zinc-400">{item.strength}</td>
                   <td className="px-4 py-2.5">
                     <Badge
                       variant={item.risk === 'High' ? 'critical' : item.risk === 'Medium' ? 'high' : 'success'}
@@ -198,23 +198,23 @@ export default function ArchitectureView({
       </div>
 
       {/* Detected Architectural Anti-Patterns */}
-      <div className="bg-zinc-900/90 border border-zinc-800/90 rounded-2xl p-6 space-y-4 shadow-xl">
-        <h3 className="font-bold text-white text-xs font-mono uppercase tracking-wider flex items-center space-x-2">
-          <AlertTriangle size={16} className="text-amber-400" />
+      <div className="bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800/90 rounded-2xl p-6 space-y-4 shadow-sm dark:shadow-xl">
+        <h3 className="font-bold text-slate-900 dark:text-white text-xs font-mono uppercase tracking-wider flex items-center space-x-2">
+          <AlertTriangle size={16} className="text-amber-500" />
           <span>Detected Architectural Anti-Patterns</span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-          <div className="p-4 bg-zinc-950/80 rounded-xl border border-zinc-800/90 space-y-1.5">
-            <div className="font-bold text-amber-400 text-xs">TIGHT COUPLING IN AUTH CONTROLLER</div>
-            <p className="text-zinc-400 leading-relaxed font-sans text-xs">
+          <div className="p-4 bg-slate-50 dark:bg-zinc-950/80 rounded-xl border border-slate-200 dark:border-zinc-800/90 space-y-1.5">
+            <div className="font-bold text-amber-600 dark:text-amber-400 text-xs">TIGHT COUPLING IN AUTH CONTROLLER</div>
+            <p className="text-slate-600 dark:text-zinc-400 leading-relaxed font-sans text-xs">
               `auth.ts` communicates directly with raw database drivers without an abstract service layer or repository interface.
             </p>
           </div>
 
-          <div className="p-4 bg-zinc-950/80 rounded-xl border border-zinc-800/90 space-y-1.5">
-            <div className="font-bold text-amber-400 text-xs">CIRCULAR DEPENDENCY IN RECONCILIATION</div>
-            <p className="text-zinc-400 leading-relaxed font-sans text-xs">
+          <div className="p-4 bg-slate-50 dark:bg-zinc-950/80 rounded-xl border border-slate-200 dark:border-zinc-800/90 space-y-1.5">
+            <div className="font-bold text-amber-600 dark:text-amber-400 text-xs">CIRCULAR DEPENDENCY IN RECONCILIATION</div>
+            <p className="text-slate-600 dark:text-zinc-400 leading-relaxed font-sans text-xs">
               `reconciliation.py` issues HTTP callbacks back to the main payment gateway API while sharing database transaction pools.
             </p>
           </div>

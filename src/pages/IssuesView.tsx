@@ -10,22 +10,25 @@ import {
   CheckCheck,
   Download,
   Trash2,
-  Filter
+  Filter,
+  GitPullRequest
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AnalysisResult, CodeIssue } from '../types';
+import { AnalysisResult, CodeIssue, Project } from '../types';
 import DiffViewer from '../components/DiffViewer';
 import CustomSelect, { SelectOption } from '../components/common/CustomSelect';
 import Badge, { BadgeVariant } from '../components/common/Badge';
 import PageHeader from '../components/common/PageHeader';
 import Checkbox from '../components/common/Checkbox';
+import GitHubPushModal from '../components/GitHubPushModal';
 
 interface IssuesViewProps {
   analysis: AnalysisResult | null;
+  project?: Project | null;
   onNavigateExplorer: (filePath: string, line: number) => void;
 }
 
-export default function IssuesView({ analysis, onNavigateExplorer }: IssuesViewProps) {
+export default function IssuesView({ analysis, project, onNavigateExplorer }: IssuesViewProps) {
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -36,6 +39,16 @@ export default function IssuesView({ analysis, onNavigateExplorer }: IssuesViewP
   // Multi-select state
   const [selectedIssueIds, setSelectedIssueIds] = useState<string[]>([]);
   const [batchActionSuccess, setBatchActionSuccess] = useState<string | null>(null);
+
+  // Push to GitHub state
+  const [isPushModalOpen, setIsPushModalOpen] = useState(false);
+  const [filesToPush, setFilesToPush] = useState<{ path: string; content: string }[]>([]);
+  const [activeIssueContext, setActiveIssueContext] = useState<{
+    id: string;
+    title: string;
+    cwe?: string;
+    file: string;
+  } | undefined>(undefined);
 
   if (!analysis) {
     return (
@@ -134,7 +147,7 @@ export default function IssuesView({ analysis, onNavigateExplorer }: IssuesViewP
       {/* Header */}
       <PageHeader
         title="Issue Explorer & Triage"
-        subtitle={`Showing ${filteredIssues.length} of ${analysis.issues.length} detected findings across codebase`}
+        subtitle={`${filteredIssues.length} of ${analysis.issues.length} detected findings`}
         icon={<AlertTriangle size={22} />}
         actions={
           <div className="flex items-center space-x-1.5 bg-slate-100 dark:bg-zinc-900/90 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 text-xs font-mono">
@@ -244,6 +257,30 @@ export default function IssuesView({ analysis, onNavigateExplorer }: IssuesViewP
               >
                 <CheckCheck size={14} />
                 <span>Resolve Selected ({selectedIssueIds.length})</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  const selectedIssuesWithFixes = analysis.issues.filter(
+                    (i) => selectedIssueIds.includes(i.id) && (i.fixedCode || i.suggestedFix)
+                  );
+                  const filesMap: { [path: string]: string } = {};
+                  selectedIssuesWithFixes.forEach((iss) => {
+                    filesMap[iss.file] = iss.fixedCode || iss.suggestedFix || '';
+                  });
+                  const filesList = Object.entries(filesMap).map(([path, content]) => ({ path, content }));
+                  if (filesList.length === 0) {
+                    alert('None of the selected issues have automated code fixes.');
+                    return;
+                  }
+                  setFilesToPush(filesList);
+                  setActiveIssueContext(undefined);
+                  setIsPushModalOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-slate-900 text-xs font-bold flex items-center space-x-1.5 shadow-sm cursor-pointer transition-all"
+              >
+                <GitPullRequest size={14} className="text-indigo-400 dark:text-indigo-600" />
+                <span>Push Fixes to GitHub ({selectedIssueIds.length})</span>
               </button>
 
               <button
@@ -393,10 +430,32 @@ export default function IssuesView({ analysis, onNavigateExplorer }: IssuesViewP
 
                       {/* Code Snippet / Diff comparison */}
                       {issue.codeSnippet && (
-                        <div className="space-y-2">
-                          <div className="text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-mono">
-                            Vulnerable Code Context vs. Proposed Solution
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-mono">
+                              Vulnerable Code Context vs. Proposed Solution
+                            </div>
+
+                            <button
+                              onClick={() => {
+                                const fixCode = issue.fixedCode || issue.suggestedFix;
+                                if (!fixCode) return;
+                                setFilesToPush([{ path: issue.file, content: fixCode }]);
+                                setActiveIssueContext({
+                                  id: issue.id,
+                                  title: issue.title,
+                                  cwe: issue.cwe,
+                                  file: issue.file
+                                });
+                                setIsPushModalOpen(true);
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-slate-900 text-xs font-bold flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                            >
+                              <GitPullRequest size={13} className="text-indigo-400 dark:text-indigo-600" />
+                              <span>Push Fix & Open PR</span>
+                            </button>
                           </div>
+
                           <DiffViewer
                             originalCode={issue.codeSnippet}
                             suggestedCode={issue.fixedCode || issue.suggestedFix}
@@ -422,6 +481,15 @@ export default function IssuesView({ analysis, onNavigateExplorer }: IssuesViewP
           </div>
         )}
       </div>
+
+      {/* Push to GitHub Modal */}
+      <GitHubPushModal
+        isOpen={isPushModalOpen}
+        onClose={() => setIsPushModalOpen(false)}
+        project={project || null}
+        filesToCommit={filesToPush}
+        issueContext={activeIssueContext}
+      />
     </div>
   );
 }

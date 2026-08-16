@@ -174,3 +174,59 @@ export interface TestGenResult {
   coverageNotes: string[];
   testCasesCount: number;
 }
+
+export interface GitHubUser {
+  login: string;
+  id: number;
+  avatar_url: string;
+  name: string | null;
+  html_url: string;
+  bio: string | null;
+  public_repos: number;
+  total_private_repos?: number;
+}
+
+export interface GitHubRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  html_url: string;
+  description: string | null;
+  default_branch: string;
+  stargazers_count: number;
+  forks_count: number;
+  language: string | null;
+  updated_at: string;
+  size: number;
+  owner: {
+    login: string;
+    avatar_url: string;
+  };
+}
+
+export interface GitHubPushFixRequest {
+  owner: string;
+  repo: string;
+  baseBranch?: string;
+  targetBranch: string;
+  commitMessage: string;
+  createPullRequest?: boolean;
+  prTitle?: string;
+  prBody?: string;
+  changes: {
+    path: string;
+    content: string;
+  }[];
+}
+
+export interface GitHubPushFixResult {
+  success: boolean;
+  branch?: string;
+  commitSha?: string;
+  commitUrl?: string;
+  pullRequestUrl?: string;
+  pullRequestNumber?: number;
+  message?: string;
+  error?: string;
+}

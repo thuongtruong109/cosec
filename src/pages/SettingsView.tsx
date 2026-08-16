@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
-import { Sliders, ShieldCheck, Check, Key, Sparkles, Sun, Moon, Monitor, Palette } from 'lucide-react';
+import { Sliders, ShieldCheck, Check, Key, Sparkles, Sun, Moon, Monitor, Palette, Github, ExternalLink, RefreshCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import PageHeader from '../components/common/PageHeader';
 import Badge from '../components/common/Badge';
 import Checkbox from '../components/common/Checkbox';
 import { useTheme, Theme } from '../context/ThemeContext';
+import { useGitHub } from '../context/GitHubContext';
+import GitHubAuthModal from '../components/GitHubAuthModal';
 
 export default function SettingsView() {
   const { theme, setTheme } = useTheme();
+  const { user, isAuthenticated, logout, refreshRepos, isLoadingRepos } = useGitHub();
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [model, setModel] = useState<string>('gemini-2.5-flash');
   const [securityRules, setSecurityRules] = useState<boolean>(true);
   const [complexityRules, setComplexityRules] = useState<boolean>(true);
@@ -46,8 +50,8 @@ export default function SettingsView() {
     <div className="p-6 sm:p-8 max-w-4xl mx-auto space-y-7 select-none font-sans">
       {/* Header */}
       <PageHeader
-        title="Colens AI Engine Settings"
-        subtitle="Configure visual themes, rule sensitivity, AI reasoning models, and security policies"
+        title="Colens AI Settings"
+        subtitle="Configure appearance, AI models, GitHub integrations, and security policies"
         icon={<Sliders size={22} />}
       />
 
@@ -214,6 +218,88 @@ export default function SettingsView() {
         </div>
       </motion.div>
 
+      {/* GitHub Integration Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800/90 p-6 rounded-2xl space-y-4 shadow-xl text-slate-800 dark:text-zinc-100"
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+          <div className="flex items-center space-x-2">
+            <Github size={18} className="text-slate-900 dark:text-white" />
+            <h3 className="font-bold text-slate-900 dark:text-white text-sm">GitHub Account & OAuth Sync</h3>
+          </div>
+          {isAuthenticated ? (
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center space-x-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Connected</span>
+            </span>
+          ) : (
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+              Not Connected
+            </span>
+          )}
+        </div>
+
+        {isAuthenticated && user ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-50 dark:bg-zinc-950/80 border border-slate-200 dark:border-zinc-800">
+            <div className="flex items-center space-x-3.5">
+              <img
+                src={user.avatar_url}
+                alt={user.login}
+                className="w-11 h-11 rounded-xl ring-2 ring-indigo-500/20 object-cover"
+              />
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-slate-900 dark:text-white text-xs">{user.name || user.login}</span>
+                  <span className="font-mono text-xs text-slate-500 dark:text-zinc-400">@{user.login}</span>
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono mt-0.5">
+                  {user.public_repos} Repositories • Full Code Audit & PR Push Active
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => refreshRepos()}
+                disabled={isLoadingRepos}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 text-xs font-medium text-slate-700 dark:text-zinc-300 flex items-center space-x-1.5 transition-colors cursor-pointer"
+              >
+                <RefreshCw size={12} className={isLoadingRepos ? 'animate-spin text-indigo-500' : ''} />
+                <span>Sync Repos</span>
+              </button>
+              <button
+                onClick={() => logout()}
+                className="px-3 py-1.5 rounded-xl border border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 text-xs font-medium transition-colors cursor-pointer"
+              >
+                Disconnect
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                Enable 1-Click Codebase Import & Automated PR Creation
+              </h4>
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed max-w-lg">
+                Authenticate via GitHub OAuth or Personal Access Token to list your public & private repositories and push verified security patches back to GitHub.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-slate-900 font-bold text-xs flex items-center justify-center space-x-2 transition-all shadow-md shrink-0 cursor-pointer"
+            >
+              <Github size={14} />
+              <span>Connect GitHub</span>
+            </button>
+          </div>
+        )}
+      </motion.div>
+
       {/* API Key Status Readout */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -246,6 +332,11 @@ export default function SettingsView() {
           <span>{saved ? 'Preferences Saved' : 'Save Preferences'}</span>
         </button>
       </div>
+
+      <GitHubAuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
     </div>
   );
 }

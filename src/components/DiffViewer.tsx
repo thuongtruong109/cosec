@@ -30,15 +30,15 @@ export default function DiffViewer({
   const suggLines = suggestedCode.trim().split('\n');
 
   return (
-    <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden text-xs font-mono my-3 shadow-xl">
+    <div className="bg-slate-900 dark:bg-zinc-950 border border-slate-700 dark:border-zinc-800 rounded-xl overflow-hidden text-xs font-mono my-3 shadow-xl">
       {filename && (
-        <div className="bg-zinc-900/90 px-4 py-2 border-b border-zinc-800 flex items-center space-x-2 text-zinc-300 font-sans">
+        <div className="bg-slate-800/90 dark:bg-zinc-900/90 px-4 py-2 border-b border-slate-700 dark:border-zinc-800 flex items-center space-x-2 text-slate-200 dark:text-zinc-300 font-sans">
           <FileCode size={14} className="text-indigo-400" />
           <span className="font-semibold text-xs text-white">{filename}</span>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-zinc-800 border-b border-zinc-800 bg-zinc-900/70 px-4 py-2.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-700 dark:divide-zinc-800 border-b border-slate-700 dark:border-zinc-800 bg-slate-800/60 dark:bg-zinc-900/70 px-4 py-2.5">
         <div className="flex items-center space-x-2 text-rose-400 font-sans font-semibold">
           <span className="w-2 h-2 rounded-full bg-rose-500" />
           <span>{originalTitle}</span>
@@ -52,7 +52,7 @@ export default function DiffViewer({
           <div className="flex items-center space-x-2">
             <button
               onClick={handleCopy}
-              className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-[11px] font-sans flex items-center space-x-1 transition-colors cursor-pointer"
+              className="px-2.5 py-1 bg-slate-700/80 hover:bg-slate-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-200 dark:text-zinc-300 rounded-lg text-[11px] font-sans flex items-center space-x-1 transition-colors cursor-pointer"
             >
               {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
@@ -70,24 +70,24 @@ export default function DiffViewer({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-zinc-800 max-h-80 overflow-y-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-700 dark:divide-zinc-800 max-h-80 overflow-y-auto">
         {/* Left Side: Original / Removed Code */}
-        <div className="p-3 bg-rose-950/10 space-y-1">
+        <div className="p-3 bg-rose-950/20 space-y-1">
           {origLines.map((line, idx) => (
-            <div key={idx} className="flex items-start space-x-2 text-rose-300/90 leading-relaxed">
-              <span className="text-zinc-600 select-none w-6 text-right shrink-0">{idx + 1}</span>
-              <span className="text-rose-500/80 select-none shrink-0">-</span>
+            <div key={idx} className="flex items-start space-x-2 text-rose-300 leading-relaxed">
+              <span className="text-slate-500 dark:text-zinc-600 select-none w-6 text-right shrink-0">{idx + 1}</span>
+              <span className="text-rose-400 select-none shrink-0 font-bold">-</span>
               <pre className="whitespace-pre-wrap break-all overflow-x-auto">{line}</pre>
             </div>
           ))}
         </div>
 
         {/* Right Side: Suggested / Added Code */}
-        <div className="p-3 bg-emerald-950/10 space-y-1">
+        <div className="p-3 bg-emerald-950/20 space-y-1">
           {suggLines.map((line, idx) => (
             <div key={idx} className="flex items-start space-x-2 text-emerald-300 leading-relaxed">
-              <span className="text-zinc-600 select-none w-6 text-right shrink-0">{idx + 1}</span>
-              <span className="text-emerald-400 select-none shrink-0">+</span>
+              <span className="text-slate-500 dark:text-zinc-600 select-none w-6 text-right shrink-0">{idx + 1}</span>
+              <span className="text-emerald-400 select-none shrink-0 font-bold">+</span>
               <pre className="whitespace-pre-wrap break-all overflow-x-auto">{line}</pre>
             </div>
           ))}

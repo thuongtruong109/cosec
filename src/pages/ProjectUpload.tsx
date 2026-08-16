@@ -16,12 +16,14 @@ import {
   Link2,
   ClipboardPaste,
   Check,
-  ClipboardCheck
+  ClipboardCheck,
+  Github
 } from 'lucide-react';
 import { Project } from '../types';
 import { parseZipRepository, parsePastedCode } from '../services/zipParser';
 import { fetchRemoteGitRepository } from '../services/gitUrlService';
 import { SAMPLE_PROJECT_PAYMENT_API } from '../data/sampleProjects';
+import GitHubRepoBrowser from '../components/GitHubRepoBrowser';
 
 interface ProjectUploadProps {
   onProjectLoaded: (project: Project) => void;
@@ -29,7 +31,7 @@ interface ProjectUploadProps {
 }
 
 export default function ProjectUpload({ onProjectLoaded, onStartDemo }: ProjectUploadProps) {
-  const [activeTab, setActiveTab] = useState<'url' | 'zip' | 'files' | 'paste'>('url');
+  const [activeTab, setActiveTab] = useState<'url' | 'github' | 'zip' | 'files' | 'paste'>('url');
   const [isParsing, setIsParsing] = useState(false);
   const [progressMsg, setProgressMsg] = useState<string>('');
   const [parseError, setParseError] = useState<string | null>(null);
@@ -220,20 +222,35 @@ export default function ProjectUpload({ onProjectLoaded, onStartDemo }: ProjectU
       </div>
 
       {/* Upload Modes Tabs */}
-      <div className="flex border-b border-slate-200 dark:border-zinc-800/80 space-x-4">
+      <div className="flex border-b border-slate-200 dark:border-zinc-800/80 space-x-4 overflow-x-auto">
         <button
           onClick={() => {
             setActiveTab('url');
             setStagedProject(null);
           }}
-          className={`pb-2.5 text-xs font-semibold flex items-center space-x-2 border-b-2 transition-colors cursor-pointer ${
+          className={`pb-2.5 text-xs font-semibold flex items-center space-x-2 border-b-2 transition-colors cursor-pointer shrink-0 ${
             activeTab === 'url'
               ? 'border-indigo-600 dark:border-indigo-500 text-indigo-600 dark:text-indigo-400'
               : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
           }`}
         >
           <Globe size={15} />
-          <span>GitHub / GitLab URL</span>
+          <span>Git Repository URL</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('github');
+            setStagedProject(null);
+          }}
+          className={`pb-2.5 text-xs font-semibold flex items-center space-x-2 border-b-2 transition-colors cursor-pointer shrink-0 ${
+            activeTab === 'github'
+              ? 'border-indigo-600 dark:border-indigo-500 text-indigo-600 dark:text-indigo-400'
+              : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+          }`}
+        >
+          <Github size={15} />
+          <span>My GitHub Repos</span>
         </button>
 
         <button
@@ -241,7 +258,7 @@ export default function ProjectUpload({ onProjectLoaded, onStartDemo }: ProjectU
             setActiveTab('zip');
             setStagedProject(null);
           }}
-          className={`pb-2.5 text-xs font-semibold flex items-center space-x-2 border-b-2 transition-colors cursor-pointer ${
+          className={`pb-2.5 text-xs font-semibold flex items-center space-x-2 border-b-2 transition-colors cursor-pointer shrink-0 ${
             activeTab === 'zip'
               ? 'border-indigo-600 dark:border-indigo-500 text-indigo-600 dark:text-indigo-400'
               : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
@@ -256,7 +273,7 @@ export default function ProjectUpload({ onProjectLoaded, onStartDemo }: ProjectU
             setActiveTab('files');
             setStagedProject(null);
           }}
-          className={`pb-2.5 text-xs font-semibold flex items-center space-x-2 border-b-2 transition-colors cursor-pointer ${
+          className={`pb-2.5 text-xs font-semibold flex items-center space-x-2 border-b-2 transition-colors cursor-pointer shrink-0 ${
             activeTab === 'files'
               ? 'border-indigo-600 dark:border-indigo-500 text-indigo-600 dark:text-indigo-400'
               : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
@@ -271,7 +288,7 @@ export default function ProjectUpload({ onProjectLoaded, onStartDemo }: ProjectU
             setActiveTab('paste');
             setStagedProject(null);
           }}
-          className={`pb-2.5 text-xs font-semibold flex items-center space-x-2 border-b-2 transition-colors cursor-pointer ${
+          className={`pb-2.5 text-xs font-semibold flex items-center space-x-2 border-b-2 transition-colors cursor-pointer shrink-0 ${
             activeTab === 'paste'
               ? 'border-indigo-600 dark:border-indigo-500 text-indigo-600 dark:text-indigo-400'
               : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
@@ -285,6 +302,14 @@ export default function ProjectUpload({ onProjectLoaded, onStartDemo }: ProjectU
       {/* Upload / Import Input Zones */}
       {!stagedProject ? (
         <div className="space-y-5">
+          {activeTab === 'github' && (
+            <GitHubRepoBrowser
+              onProjectImported={(importedProj) => {
+                onProjectLoaded(importedProj);
+              }}
+            />
+          )}
+
           {activeTab === 'url' && (
             <div className="bg-white dark:bg-zinc-900/70 border border-slate-200 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-sm">
               <div>
@@ -327,25 +352,32 @@ export default function ProjectUpload({ onProjectLoaded, onStartDemo }: ProjectU
               </div>
 
               {/* Quick Presets */}
-              <div className="pt-2 border-t border-slate-100 dark:border-zinc-800/60">
-                <div className="text-[10px] font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider mb-2 font-mono">
-                  Quick Popular Repositories
+              <div className="pt-3 border-t border-slate-100 dark:border-zinc-800/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider font-mono">
+                    Popular Open-Source Repositories (1-Click Test)
+                  </div>
+                  <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono">Supports GitHub & GitLab</span>
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs font-mono">
                   {[
-                    'https://github.com/expressjs/express',
-                    'https://github.com/fastify/fastify',
-                    'https://github.com/pallets/flask',
-                    'https://gitlab.com/gitlab-org/gitlab-runner'
+                    { label: 'Express.js (Node)', url: 'https://github.com/expressjs/express' },
+                    { label: 'FastAPI (Python)', url: 'https://github.com/fastapi/fastapi' },
+                    { label: 'Fastify (Node)', url: 'https://github.com/fastify/fastify' },
+                    { label: 'Gin (Go)', url: 'https://github.com/gin-gonic/gin' },
+                    { label: 'Flask (Python)', url: 'https://github.com/pallets/flask' },
+                    { label: 'Zustand (React)', url: 'https://github.com/pmndrs/zustand' },
+                    { label: 'GitLab Runner', url: 'https://gitlab.com/gitlab-org/gitlab-runner' }
                   ].map((preset) => (
                     <button
-                      key={preset}
+                      key={preset.url}
                       onClick={() => {
-                        setGitUrlInput(preset);
+                        setGitUrlInput(preset.url);
                       }}
-                      className="px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 hover:border-indigo-500/50 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 text-[11px] transition-colors cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 hover:border-indigo-500/50 text-slate-700 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 text-[11px] transition-colors cursor-pointer flex items-center gap-1.5"
                     >
-                      {preset.replace('https://github.com/', '').replace('https://gitlab.com/', '')}
+                      <GitBranch size={11} className="text-slate-400 dark:text-zinc-500" />
+                      <span>{preset.label}</span>
                     </button>
                   ))}
                 </div>
@@ -515,6 +547,45 @@ export default function ProjectUpload({ onProjectLoaded, onStartDemo }: ProjectU
             </div>
           </div>
 
+          {/* Deep Audit Engine Checklist */}
+          <div className="p-3.5 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800/80 rounded-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider font-mono">
+                Engine Audit Dimensions Ready
+              </span>
+              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                <CheckCircle2 size={12} />
+                <span>6 Core Modules Armed</span>
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono text-slate-700 dark:text-zinc-300">
+              <div className="flex items-center space-x-1.5 bg-white dark:bg-zinc-900 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                <span className="truncate text-[11px]">OWASP Top 10 & CWE 2025</span>
+              </div>
+              <div className="flex items-center space-x-1.5 bg-white dark:bg-zinc-900 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                <span className="truncate text-[11px]">Big-O & Cyclomatic AST</span>
+              </div>
+              <div className="flex items-center space-x-1.5 bg-white dark:bg-zinc-900 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                <span className="truncate text-[11px]">Supply Chain & CVE Audit</span>
+              </div>
+              <div className="flex items-center space-x-1.5 bg-white dark:bg-zinc-900 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <span className="truncate text-[11px]">Auto Test Suite Generator</span>
+              </div>
+              <div className="flex items-center space-x-1.5 bg-white dark:bg-zinc-900 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 shrink-0" />
+                <span className="truncate text-[11px]">Context QA Code Chat</span>
+              </div>
+              <div className="flex items-center space-x-1.5 bg-white dark:bg-zinc-900 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
+                <span className="truncate text-[11px]">1-Click GitHub PR Push</span>
+              </div>
+            </div>
+          </div>
+
           {/* Start AI Review CTA */}
           <div className="flex justify-end pt-1">
             <button
@@ -522,7 +593,7 @@ export default function ProjectUpload({ onProjectLoaded, onStartDemo }: ProjectU
               className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-lg shadow-indigo-600/20 flex items-center space-x-2 transition-all cursor-pointer"
             >
               <Sparkles size={15} />
-              <span>Start AI Code Review</span>
+              <span>Start Deep AI Code Review</span>
             </button>
           </div>
         </div>

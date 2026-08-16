@@ -17,6 +17,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Project, AnalysisResult } from '../types';
 import ThemeToggle from './common/ThemeToggle';
+import GitHubUserMenu from './GitHubUserMenu';
 
 interface TopNavProps {
   project: Project | null;
@@ -329,10 +330,8 @@ export default function TopNav({
           <Sliders size={16} />
         </button>
 
-        {/* User Avatar */}
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white text-xs font-bold border border-indigo-400/40 shadow-sm cursor-pointer">
-          AI
-        </div>
+        {/* GitHub Account Menu */}
+        <GitHubUserMenu onOpenRepoSelect={() => onNavigate('upload')} />
       </div>
     </header>
   );

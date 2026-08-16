@@ -65,22 +65,22 @@ export default function DashboardView({
     <div className="p-6 sm:p-8 max-w-7xl mx-auto space-y-7 select-none font-sans">
       {/* Header */}
       <PageHeader
-        title="Codebase Architecture & Health Dashboard"
-        subtitle={`Repository: ${analysis.projectName} • Analyzed on ${new Date(analysis.analyzedAt).toLocaleDateString()}`}
+        title="Codebase Architecture & Health"
+        subtitle={`${analysis.projectName} • Analyzed ${new Date(analysis.analyzedAt).toLocaleDateString()}`}
         icon={<LayoutDashboard size={22} />}
         actions={
           <div className="flex items-center space-x-2.5">
             <button
               onClick={() => setIsShareModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800 text-zinc-200 font-semibold text-xs transition-all shadow-md flex items-center space-x-2 cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-800 dark:text-zinc-200 font-semibold text-xs transition-all shadow-sm flex items-center space-x-2 cursor-pointer"
             >
-              <Share2 size={15} className="text-indigo-400" />
+              <Share2 size={14} className="text-indigo-600 dark:text-indigo-400" />
               <span>Share & Export</span>
             </button>
 
             <button
               onClick={() => onNavigateExplorer()}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all shadow-lg shadow-indigo-600/20 flex items-center space-x-2 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all shadow-md shadow-indigo-600/20 flex items-center space-x-2 cursor-pointer"
             >
               <FileCode size={15} />
               <span>Explore Codebase</span>
@@ -96,12 +96,12 @@ export default function DashboardView({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
-          className="bg-zinc-900/90 border border-zinc-800/90 p-6 rounded-2xl flex flex-col items-center justify-center relative shadow-xl backdrop-blur-sm"
+          className="bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800/90 p-6 rounded-2xl flex flex-col items-center justify-center relative shadow-sm dark:shadow-xl backdrop-blur-sm"
         >
           <div className="w-full flex items-center justify-between mb-3 text-xs font-mono">
-            <span className="font-bold text-zinc-400 uppercase tracking-wider">Overall Health</span>
-            <span className="text-emerald-400 font-semibold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Overall Health</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Passed QA
             </span>
           </div>
@@ -113,11 +113,11 @@ export default function DashboardView({
             sublabel="Health Score"
           />
 
-          <div className="mt-4 pt-3 border-t border-zinc-800/80 w-full text-center text-xs text-zinc-400">
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800/80 w-full text-center text-xs text-slate-500 dark:text-zinc-400">
             {scores.overall >= 80 ? (
-              <span className="text-emerald-400 font-medium">Production-Ready & High Integrity</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">Production-Ready & High Integrity</span>
             ) : (
-              <span className="text-amber-400 font-medium">Attention Recommended on Key Vulnerabilities</span>
+              <span className="text-amber-600 dark:text-amber-400 font-medium">Attention Recommended on Key Vulnerabilities</span>
             )}
           </div>
         </motion.div>
@@ -132,10 +132,10 @@ export default function DashboardView({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25, delay: idx * 0.05 }}
-                className="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800/80 shadow-md flex flex-col justify-between"
+                className="p-4 rounded-2xl bg-white dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-800/80 shadow-sm dark:shadow-md flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-zinc-300 font-mono">{cat.label}</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-zinc-300 font-mono">{cat.label}</span>
                   <div className={`p-2 rounded-xl border ${cat.bg} ${cat.color}`}>
                     <Icon size={16} />
                   </div>
@@ -143,11 +143,11 @@ export default function DashboardView({
 
                 <div className="mt-3">
                   <div className="flex items-baseline justify-between mb-1.5">
-                    <span className="text-2xl font-extrabold text-white">{cat.value}</span>
-                    <span className="text-[10px] text-zinc-500 font-mono">/ 100</span>
+                    <span className="text-2xl font-extrabold text-slate-900 dark:text-white">{cat.value}</span>
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">/ 100</span>
                   </div>
 
-                  <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-1.5 w-full bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${cat.value}%` }}
@@ -168,21 +168,21 @@ export default function DashboardView({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, delay: 0.25 }}
             onClick={onNavigateIssues}
-            className="p-4 rounded-2xl bg-gradient-to-br from-indigo-950/30 to-purple-950/20 border border-indigo-500/30 shadow-md flex flex-col justify-between cursor-pointer hover:border-indigo-400/50 transition-all"
+            className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-gradient-to-br dark:from-indigo-950/30 dark:to-purple-950/20 border border-indigo-200 dark:border-indigo-500/30 shadow-sm dark:shadow-md flex flex-col justify-between cursor-pointer hover:border-indigo-400/50 transition-all"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-indigo-300 font-mono">Total Issues</span>
-              <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+              <span className="text-xs font-bold text-indigo-900 dark:text-indigo-300 font-mono">Total Issues</span>
+              <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">
                 <AlertTriangle size={16} />
               </div>
             </div>
 
             <div className="mt-2">
-              <div className="text-2xl font-extrabold text-white">{issues.length} Findings</div>
-              <div className="flex items-center space-x-2 mt-2 text-[11px] font-mono text-zinc-300">
-                <span className="text-rose-400 font-bold">{issueCounts.critical} Critical</span>
+              <div className="text-2xl font-extrabold text-slate-900 dark:text-white">{issues.length} Findings</div>
+              <div className="flex items-center space-x-2 mt-2 text-[11px] font-mono text-slate-600 dark:text-zinc-300">
+                <span className="text-rose-600 dark:text-rose-400 font-bold">{issueCounts.critical} Critical</span>
                 <span>•</span>
-                <span className="text-amber-400 font-bold">{issueCounts.high} High</span>
+                <span className="text-amber-600 dark:text-amber-400 font-bold">{issueCounts.high} High</span>
               </div>
             </div>
           </motion.div>
@@ -230,18 +230,18 @@ export default function DashboardView({
       </div>
 
       {/* Top Priority Issues Preview */}
-      <div className="bg-zinc-900/90 border border-zinc-800/90 rounded-2xl p-6 space-y-4 shadow-xl">
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+      <div className="bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800/90 rounded-2xl p-6 space-y-4 shadow-sm dark:shadow-xl">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
           <div className="flex items-center space-x-2.5">
-            <ShieldAlert size={18} className="text-rose-400" />
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
-              Top Priority High-Risk Findings
+            <ShieldAlert size={18} className="text-rose-600 dark:text-rose-400" />
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider font-mono">
+              Top Priority Findings
             </h2>
           </div>
 
           <button
             onClick={onNavigateIssues}
-            className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center space-x-1 transition-colors cursor-pointer"
+            className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 flex items-center space-x-1 transition-colors cursor-pointer"
           >
             <span>View all {issues.length} findings</span>
             <ArrowRight size={14} />
@@ -254,21 +254,21 @@ export default function DashboardView({
               key={issue.id}
               whileHover={{ x: 3 }}
               onClick={() => onNavigateExplorer(issue.file, issue.line)}
-              className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 hover:border-zinc-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer transition-all"
+              className="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-950/80 border border-slate-200 dark:border-zinc-800/80 hover:border-indigo-300 dark:hover:border-zinc-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer transition-all"
             >
               <div className="flex items-start space-x-3">
                 <Badge variant={issue.severity as BadgeVariant} icon size="xs" className="mt-0.5 shrink-0">
                   {issue.severity}
                 </Badge>
                 <div>
-                  <div className="text-xs font-semibold text-zinc-200">{issue.title}</div>
-                  <div className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                  <div className="text-xs font-semibold text-slate-800 dark:text-zinc-200">{issue.title}</div>
+                  <div className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono mt-0.5">
                     {issue.file}:{issue.line} • <span className="capitalize">{issue.category}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2 text-xs font-mono text-indigo-400 shrink-0 self-end sm:self-center">
+              <div className="flex items-center space-x-2 text-xs font-mono text-indigo-600 dark:text-indigo-400 shrink-0 self-end sm:self-center">
                 <span>Investigate</span>
                 <ArrowRight size={13} />
               </div>
