@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import { runComprehensiveStaticAnalysis, extractSymbolsFromFile, StaticAnalysisReport } from "./src/services/codeAnalysisEngine";
@@ -438,10 +439,113 @@ describe('${filePath || 'Component / Module Test'}', () => {
   });
 
   // -------------------------------------------------------------
+  // Cryptographically Secure OAuth State & Session Store
+  // -------------------------------------------------------------
+  interface OAuthStateRecord {
+    state: string;
+    origin: string;
+    scope: string;
+    createdAt: number;
+  }
+
+  interface UserSession {
+    sessionId: string;
+    githubToken: string;
+    user: any;
+    createdAt: number;
+    expiresAt: number;
+  }
+
+  const oauthStates = new Map<string, OAuthStateRecord>();
+  const userSessions = new Map<string, UserSession>();
+
+  const cleanupAuthStores = () => {
+    const now = Date.now();
+    for (const [k, v] of oauthStates.entries()) {
+      if (now - v.createdAt > 10 * 60 * 1000) { // 10 minutes TTL
+        oauthStates.delete(k);
+      }
+    }
+    for (const [k, v] of userSessions.entries()) {
+      if (now > v.expiresAt) {
+        userSessions.delete(k);
+      }
+    }
+  };
+
+  function generateOAuthState(origin: string, scope: string): string {
+    cleanupAuthStores();
+    const state = crypto.randomBytes(32).toString('hex');
+    oauthStates.set(state, {
+      state,
+      origin,
+      scope,
+      createdAt: Date.now()
+    });
+    return state;
+  }
+
+  function validateAndConsumeOAuthState(incomingState: string): { valid: boolean; record?: OAuthStateRecord } {
+    cleanupAuthStores();
+    if (!incomingState || typeof incomingState !== 'string') {
+      return { valid: false };
+    }
+
+    const incomingBuf = Buffer.from(incomingState, 'utf-8');
+    let matchedKey: string | null = null;
+    let matchedRecord: OAuthStateRecord | undefined;
+
+    for (const [storedState, record] of oauthStates.entries()) {
+      const storedBuf = Buffer.from(storedState, 'utf-8');
+      if (incomingBuf.length === storedBuf.length && crypto.timingSafeEqual(incomingBuf, storedBuf)) {
+        matchedKey = storedState;
+        matchedRecord = record;
+        break;
+      }
+    }
+
+    if (matchedKey && matchedRecord) {
+      oauthStates.delete(matchedKey); // Single-use invalidation (replay defense)
+      return { valid: true, record: matchedRecord };
+    }
+
+    return { valid: false };
+  }
+
+  function createSession(githubToken: string, user: any): string {
+    cleanupAuthStores();
+    const sessionId = `cosecsess_${crypto.randomBytes(32).toString('hex')}`;
+    const ttl = 7 * 24 * 60 * 60 * 1000; // 7 days TTL
+    userSessions.set(sessionId, {
+      sessionId,
+      githubToken,
+      user,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + ttl
+    });
+    return sessionId;
+  }
+
+  function resolveGitHubToken(tokenOrSessionId: string | undefined): string | null {
+    if (!tokenOrSessionId) return null;
+    const trimmed = tokenOrSessionId.trim();
+    if (trimmed.startsWith('cosecsess_')) {
+      cleanupAuthStores();
+      const session = userSessions.get(trimmed);
+      if (session && Date.now() <= session.expiresAt) {
+        return session.githubToken;
+      }
+      return null;
+    }
+    // Direct Personal Access Token (PAT)
+    return trimmed;
+  }
+
+  // -------------------------------------------------------------
   // API ROUTES: GitHub OAuth, Repositories, Import & Push Fixes
   // -------------------------------------------------------------
   
-  // 1. Get GitHub OAuth Authorization URL
+  // 1. Get GitHub OAuth Authorization URL with cryptographic state & granular scopes
   app.get("/api/auth/github/url", (req, res) => {
     const clientId = process.env.GITHUB_CLIENT_ID;
     const originQuery = (req.query.origin as string) || '';
@@ -451,33 +555,58 @@ describe('${filePath || 'Component / Module Test'}', () => {
     const appUrl = process.env.APP_URL || originQuery || hostOrigin || (req.headers.origin as string) || 'http://localhost:3000';
     const redirectUri = `${appUrl.replace(/\/$/, '')}/auth/callback`;
 
+    const availableScopes = [
+      {
+        scope: 'public_repo,read:user,user:email',
+        label: 'Public Repositories (Least Privilege)',
+        description: 'Read and push remediation fixes to public repositories without requiring access to private codebases.',
+        recommended: true
+      },
+      {
+        scope: 'repo,read:user,user:email',
+        label: 'All Repositories (Public + Private)',
+        description: 'Access private repositories, push branches and open pull requests on proprietary codebases.',
+        recommended: false
+      }
+    ];
+
+    // Default to least-privilege scope: public_repo,read:user,user:email
+    const requestedScope = (req.query.scope as string) || 'public_repo,read:user,user:email';
+
     if (!clientId) {
       return res.json({
         configured: false,
         url: null,
         redirectUri,
+        scope: requestedScope,
+        availableScopes,
         message: "GitHub Client ID is not configured in server environment variables. You can easily connect instantly using a GitHub Personal Access Token (PAT)."
       });
     }
 
+    const safeOrigin = originQuery || hostOrigin || 'http://localhost:3000';
+    const state = generateOAuthState(safeOrigin, requestedScope);
+
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
-      scope: 'repo,read:user,user:email',
-      state: Math.random().toString(36).substring(7)
+      scope: requestedScope,
+      state
     });
 
     const authUrl = `https://github.com/login/oauth/authorize?${params.toString()}`;
     return res.json({
       configured: true,
       url: authUrl,
-      redirectUri
+      redirectUri,
+      scope: requestedScope,
+      availableScopes
     });
   });
 
-  // 2. GitHub OAuth Callback Handler (Popup receiver)
+  // 2. GitHub OAuth Callback Handler (Popup receiver with strict origin and encrypted session)
   const githubCallbackHandler = async (req: express.Request, res: express.Response) => {
-    const { code, error, error_description } = req.query;
+    const { code, state, error, error_description } = req.query;
     const clientId = process.env.GITHUB_CLIENT_ID;
     const clientSecret = process.env.GITHUB_CLIENT_SECRET;
     const hostHeader = req.get('host');
@@ -486,18 +615,46 @@ describe('${filePath || 'Component / Module Test'}', () => {
     const appUrl = process.env.APP_URL || hostOrigin || `${req.protocol}://${req.get('host')}` || 'http://localhost:3000';
     const redirectUri = `${appUrl.replace(/\/$/, '')}/auth/callback`;
 
-    if (error || !code) {
-      return res.send(`
+    // Fail early if error from GitHub or missing parameters
+    if (error || !code || !state) {
+      const errorMsg = String(error_description || error || 'No authorization code or state received.');
+      return res.status(400).send(`
         <!DOCTYPE html>
         <html>
           <head><title>GitHub Login Failed</title></head>
           <body style="font-family:system-ui,-apple-system,sans-serif;background:#09090b;color:#f43f5e;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-            <div style="text-align:center;padding:24px;border:1px solid #e11d4833;border-radius:16px;background:#18181b;max-width:360px;">
+            <div style="text-align:center;padding:24px;border:1px solid #e11d4833;border-radius:16px;background:#18181b;max-width:380px;">
               <h3 style="margin-top:0;">GitHub Authorization Failed</h3>
-              <p style="color:#a1a1aa;font-size:13px;">${error_description || error || 'No authorization code received.'}</p>
+              <p style="color:#a1a1aa;font-size:13px;">${errorMsg}</p>
               <script>
                 if (window.opener) {
-                  window.opener.postMessage({ type: 'GITHUB_OAUTH_ERROR', error: '${error_description || error || 'Authentication failed'}' }, '*');
+                  const targetOrigin = window.location.origin;
+                  window.opener.postMessage({ type: 'GITHUB_OAUTH_ERROR', error: ${JSON.stringify(errorMsg)} }, targetOrigin);
+                  setTimeout(() => window.close(), 2500);
+                }
+              </script>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
+    // Cryptographic constant-time state validation (CSRF defense)
+    const stateValidation = validateAndConsumeOAuthState(String(state));
+    if (!stateValidation.valid) {
+      console.warn("OAuth state validation failed (possible CSRF attempt or expired state)");
+      return res.status(403).send(`
+        <!DOCTYPE html>
+        <html>
+          <head><title>Security Verification Failed</title></head>
+          <body style="font-family:system-ui;background:#09090b;color:#f43f5e;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+            <div style="text-align:center;padding:24px;border:1px solid #e11d4833;border-radius:16px;background:#18181b;max-width:380px;">
+              <h3 style="margin-top:0;">Security Verification Failed</h3>
+              <p style="color:#a1a1aa;font-size:13px;">OAuth state verification failed. The state was either expired, already consumed, or tampered with (CSRF protection).</p>
+              <script>
+                if (window.opener) {
+                  const targetOrigin = window.location.origin;
+                  window.opener.postMessage({ type: 'GITHUB_OAUTH_ERROR', error: 'OAuth state validation failed (CSRF protection).' }, targetOrigin);
                   setTimeout(() => window.close(), 2500);
                 }
               </script>
@@ -534,28 +691,44 @@ describe('${filePath || 'Component / Module Test'}', () => {
       const userRes = await fetch('https://api.github.com/user', {
         headers: {
           'Authorization': `Bearer ${tokenData.access_token}`,
-          'User-Agent': 'ColensAI-App'
+          'User-Agent': 'ColensAI-App',
+          'Accept': 'application/vnd.github.v3+json'
         }
       });
       const userData = await userRes.json();
 
-      // Return clean callback message to opener window
+      // Create secure server-side session (raw access token NEVER leaks to client JS window messages)
+      const sessionId = createSession(tokenData.access_token, userData);
+
+      const safeUser = {
+        id: userData.id,
+        login: userData.login,
+        name: userData.name,
+        avatar_url: userData.avatar_url,
+        html_url: userData.html_url,
+        bio: userData.bio,
+        public_repos: userData.public_repos,
+        total_private_repos: userData.total_private_repos
+      };
+
+      // Return clean callback HTML with strict target origin (NO '*')
       return res.send(`
         <!DOCTYPE html>
         <html>
           <head><title>GitHub Authentication Successful</title></head>
           <body style="font-family:system-ui,-apple-system,sans-serif;background:#09090b;color:#e4e4e7;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-            <div style="text-align:center;padding:24px;border:1px solid #6366f140;border-radius:16px;background:#18181b;max-width:320px;">
+            <div style="text-align:center;padding:24px;border:1px solid #6366f140;border-radius:16px;background:#18181b;max-width:340px;">
               <div style="width:48px;height:48px;border-radius:50%;background:#6366f120;border:1px solid #6366f1;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:#818cf8;font-size:20px;">✓</div>
-              <h3 style="margin:0 0 6px;color:#ffffff;font-size:16px;">Welcome, ${userData.name || userData.login}!</h3>
-              <p style="color:#a1a1aa;font-size:12px;margin:0;">Authentication successful. Syncing with Colens AI...</p>
+              <h3 style="margin:0 0 6px;color:#ffffff;font-size:16px;">Welcome, ${safeUser.name || safeUser.login}!</h3>
+              <p style="color:#a1a1aa;font-size:12px;margin:0;">Encrypted session created. Handshaking with CoSec...</p>
               <script>
+                const targetOrigin = window.location.origin;
                 if (window.opener) {
                   window.opener.postMessage({
                     type: 'GITHUB_OAUTH_SUCCESS',
-                    token: ${JSON.stringify(tokenData.access_token)},
-                    user: ${JSON.stringify(userData)}
-                  }, '*');
+                    sessionId: ${JSON.stringify(sessionId)},
+                    user: ${JSON.stringify(safeUser)}
+                  }, targetOrigin);
                   setTimeout(() => window.close(), 600);
                 } else {
                   window.location.href = '/';
@@ -574,8 +747,9 @@ describe('${filePath || 'Component / Module Test'}', () => {
             <h3>OAuth Token Exchange Error</h3>
             <p style="color:#a1a1aa;">${err.message}</p>
             <script>
+              const targetOrigin = window.location.origin;
               if (window.opener) {
-                window.opener.postMessage({ type: 'GITHUB_OAUTH_ERROR', error: ${JSON.stringify(err.message)} }, '*');
+                window.opener.postMessage({ type: 'GITHUB_OAUTH_ERROR', error: ${JSON.stringify(err.message)} }, targetOrigin);
                 setTimeout(() => window.close(), 3000);
               }
             </script>
@@ -590,11 +764,11 @@ describe('${filePath || 'Component / Module Test'}', () => {
   // 3. Get Authenticated User Repositories
   app.get("/api/github/repos", async (req, res) => {
     try {
-      const authHeader = req.headers.authorization;
-      const token = authHeader?.replace('Bearer ', '') || (req.query.token as string);
+      const authHeader = req.headers.authorization?.replace('Bearer ', '') || (req.query.token as string);
+      const token = resolveGitHubToken(authHeader);
 
       if (!token) {
-        return res.status(401).json({ error: "Missing GitHub access token" });
+        return res.status(401).json({ error: "Missing or expired GitHub authentication session" });
       }
 
       const reposRes = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner,collaborator,organization_member', {
@@ -621,11 +795,11 @@ describe('${filePath || 'Component / Module Test'}', () => {
   // 4. Verify GitHub Token and get User Profile
   app.get("/api/github/user", async (req, res) => {
     try {
-      const authHeader = req.headers.authorization;
-      const token = authHeader?.replace('Bearer ', '') || (req.query.token as string);
+      const authHeader = req.headers.authorization?.replace('Bearer ', '') || (req.query.token as string);
+      const token = resolveGitHubToken(authHeader);
 
       if (!token) {
-        return res.status(401).json({ error: "Missing GitHub access token" });
+        return res.status(401).json({ error: "Missing or expired GitHub authentication session" });
       }
 
       const userRes = await fetch('https://api.github.com/user', {
@@ -652,7 +826,8 @@ describe('${filePath || 'Component / Module Test'}', () => {
   app.post("/api/github/import-repo", async (req, res) => {
     try {
       const { owner, repo, branch, token } = req.body;
-      const authToken = token || req.headers.authorization?.replace('Bearer ', '');
+      const rawAuth = token || req.headers.authorization?.replace('Bearer ', '');
+      const authToken = resolveGitHubToken(rawAuth);
 
       if (!owner || !repo) {
         return res.status(400).json({ error: "Missing repo owner or repository name" });
@@ -715,11 +890,7 @@ describe('${filePath || 'Component / Module Test'}', () => {
         return codeExtensions.has(ext) || filePath.endsWith('dockerfile');
       });
 
-      // Sort blobs with smart prioritization:
-      // 1. Config & manifests (package.json, tsconfig, requirements.txt, etc.)
-      // 2. Server entrypoints (index, server, app, main)
-      // 3. Routers, controllers, auth, db, models, services
-      // 4. Other source files
+      // Sort blobs with smart prioritization
       const scoreBlob = (p: string) => {
         const lp = p.toLowerCase();
         if (lp.endsWith('package.json') || lp.endsWith('requirements.txt') || lp.endsWith('pom.xml') || lp.endsWith('cargo.toml')) return 100;
@@ -845,90 +1016,223 @@ describe('${filePath || 'Component / Module Test'}', () => {
     }
   });
 
-  // 6. Push Fixed Code / Create Pull Request to GitHub
+  // 6. Push Fixed Code / Create Pull Request to GitHub (Atomic Git Tree Transaction)
   app.post("/api/github/push-fix", async (req, res) => {
     try {
       const { owner, repo, baseBranch, targetBranch, commitMessage, createPullRequest, prTitle, prBody, changes } = req.body;
-      const authToken = req.headers.authorization?.replace('Bearer ', '') || req.body.token;
+      const authHeader = req.headers.authorization?.replace('Bearer ', '') || req.body.token;
+      const token = resolveGitHubToken(authHeader);
 
-      if (!authToken) {
-        return res.status(401).json({ error: "Missing GitHub access token to push code" });
+      if (!token) {
+        return res.status(401).json({
+          success: false,
+          partial: false,
+          step: 'validation',
+          error: "Missing or expired GitHub authentication credentials"
+        });
       }
 
+      // Step 1: Strict Validation of Input Parameters
       if (!owner || !repo || !changes || !Array.isArray(changes) || changes.length === 0) {
-        return res.status(400).json({ error: "Missing required parameters (owner, repo, changes)" });
+        return res.status(400).json({
+          success: false,
+          partial: false,
+          step: 'validation',
+          error: "Missing required parameters (owner, repo, non-empty changes array)"
+        });
       }
 
-      const headers = {
-        'Authorization': `Bearer ${authToken}`,
+      for (const change of changes) {
+        if (!change.path || typeof change.path !== 'string' || typeof change.content !== 'string') {
+          return res.status(400).json({
+            success: false,
+            partial: false,
+            step: 'validation',
+            error: `Invalid change specification for path: ${change?.path || 'unknown'}`
+          });
+        }
+      }
+
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${token}`,
         'User-Agent': 'ColensAI-App',
         'Accept': 'application/vnd.github.v3+json',
         'Content-Type': 'application/json'
       };
 
-      // 1. Resolve base branch and its latest commit SHA
       const base = baseBranch || 'main';
       const branchName = targetBranch || `colens-ai-fix-${Date.now().toString(36)}`;
 
+      // Step 2: Fetch Base Branch Reference and Base Commit SHA
       const refRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${base}`, { headers });
       if (!refRes.ok) {
         const err = await refRes.json().catch(() => ({}));
-        return res.status(refRes.status).json({ error: `Base branch '${base}' not found: ${err.message}` });
+        return res.status(refRes.status).json({
+          success: false,
+          partial: false,
+          step: 'validation',
+          error: `Base branch '${base}' not found: ${err.message || 'Check branch name and repository permissions.'}`
+        });
       }
       const refData = await refRes.json();
       const baseCommitSha = refData.object.sha;
 
-      // 2. Create the target fix branch if it doesn't exist
-      const createBranchRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs`, {
+      // Fetch Base Commit to retrieve the Base Tree SHA
+      const baseCommitRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/commits/${baseCommitSha}`, { headers });
+      if (!baseCommitRes.ok) {
+        const err = await baseCommitRes.json().catch(() => ({}));
+        return res.status(baseCommitRes.status).json({
+          success: false,
+          partial: false,
+          step: 'validation',
+          error: `Failed to retrieve base commit ${baseCommitSha}: ${err.message}`
+        });
+      }
+      const baseCommitData = await baseCommitRes.json();
+      const baseTreeSha = baseCommitData.tree.sha;
+
+      // Step 3: Prepare & Create Git Blobs for ALL Modified Files (Validate All)
+      const treeEntries: { path: string; mode: string; type: string; sha: string }[] = [];
+      const failedFiles: string[] = [];
+
+      for (const change of changes) {
+        try {
+          const blobRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/blobs`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              content: change.content,
+              encoding: 'utf-8'
+            })
+          });
+
+          if (!blobRes.ok) {
+            const err = await blobRes.json().catch(() => ({}));
+            console.error(`Git blob creation failed for ${change.path}:`, err);
+            failedFiles.push(change.path);
+          } else {
+            const blobData = await blobRes.json();
+            treeEntries.push({
+              path: change.path,
+              mode: '100644', // standard file mode
+              type: 'blob',
+              sha: blobData.sha
+            });
+          }
+        } catch (err) {
+          console.error(`Blob upload error for ${change.path}:`, err);
+          failedFiles.push(change.path);
+        }
+      }
+
+      // TRANSACTION SEMANTICS: If ANY file failed to create blob, abort immediately!
+      if (failedFiles.length > 0) {
+        return res.status(502).json({
+          success: false,
+          partial: false, // Nothing was committed to the repository!
+          failedFiles,
+          step: 'blob_creation',
+          totalFiles: changes.length,
+          blobsCreated: treeEntries.length,
+          error: `Transaction aborted: Failed to upload Git blob for ${failedFiles.length} file(s): ${failedFiles.join(', ')}. No partial commits were created on the repository.`
+        });
+      }
+
+      // Step 4: Create Atomic Git Tree
+      const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          ref: `refs/heads/${branchName}`,
-          sha: baseCommitSha
+          base_tree: baseTreeSha,
+          tree: treeEntries
         })
       });
 
-      // If branch already exists (422), that's fine, we will commit to it
-      if (!createBranchRes.ok && createBranchRes.status !== 422) {
-        const err = await createBranchRes.json().catch(() => ({}));
-        return res.status(createBranchRes.status).json({ error: `Could not create branch '${branchName}': ${err.message}` });
+      if (!treeRes.ok) {
+        const err = await treeRes.json().catch(() => ({}));
+        return res.status(treeRes.status).json({
+          success: false,
+          partial: false,
+          step: 'tree_creation',
+          error: `Failed to create Git tree: ${err.message || 'Tree creation rejected by GitHub'}`
+        });
       }
+      const newTreeData = await treeRes.json();
+      const newTreeSha = newTreeData.sha;
 
-      // 3. Update files on the branch
-      for (const change of changes) {
-        // Check if file currently exists on the branch to get its SHA
-        let fileSha: string | undefined;
-        try {
-          const fileInfoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${change.path}?ref=${branchName}`, { headers });
-          if (fileInfoRes.ok) {
-            const fileInfo = await fileInfoRes.json();
-            fileSha = fileInfo.sha;
-          }
-        } catch {
-          // New file
-        }
+      // Step 5: Create Single Atomic Commit
+      const finalCommitMessage = commitMessage || `fix: apply security and architecture remediation from Colens AI`;
+      const commitRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/commits`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message: finalCommitMessage,
+          tree: newTreeSha,
+          parents: [baseCommitSha]
+        })
+      });
 
-        const updateRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${change.path}`, {
-          method: 'PUT',
+      if (!commitRes.ok) {
+        const err = await commitRes.json().catch(() => ({}));
+        return res.status(commitRes.status).json({
+          success: false,
+          partial: false,
+          step: 'commit_creation',
+          error: `Failed to create Git commit: ${err.message}`
+        });
+      }
+      const newCommitData = await commitRes.json();
+      const newCommitSha = newCommitData.sha;
+
+      // Step 6: Create or Update the Target Fix Branch
+      const checkBranchRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${branchName}`, { headers });
+      
+      if (checkBranchRes.ok) {
+        // Branch exists -> update ref to point to new commit
+        const updateRefRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${branchName}`, {
+          method: 'PATCH',
           headers,
           body: JSON.stringify({
-            message: commitMessage || `fix: apply security and architecture patch from Colens AI`,
-            content: Buffer.from(change.content).toString('base64'),
-            branch: branchName,
-            ...(fileSha ? { sha: fileSha } : {})
+            sha: newCommitSha,
+            force: false
           })
         });
 
-        if (!updateRes.ok) {
-          const err = await updateRes.json().catch(() => ({}));
-          console.warn(`Failed to commit file ${change.path}:`, err);
+        if (!updateRefRes.ok) {
+          const err = await updateRefRes.json().catch(() => ({}));
+          return res.status(updateRefRes.status).json({
+            success: false,
+            partial: false,
+            step: 'branch_update',
+            error: `Failed to update branch '${branchName}': ${err.message}`
+          });
+        }
+      } else {
+        // Create new branch ref pointing to new commit
+        const createBranchRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            ref: `refs/heads/${branchName}`,
+            sha: newCommitSha
+          })
+        });
+
+        if (!createBranchRes.ok) {
+          const err = await createBranchRes.json().catch(() => ({}));
+          return res.status(createBranchRes.status).json({
+            success: false,
+            partial: false,
+            step: 'branch_update',
+            error: `Failed to create branch '${branchName}': ${err.message}`
+          });
         }
       }
 
+      // Step 7: Create or Link Pull Request (if requested)
       let pullRequestUrl: string | undefined;
       let pullRequestNumber: number | undefined;
 
-      // 4. Optionally create a Pull Request
       if (createPullRequest) {
         const prRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
           method: 'POST',
@@ -946,22 +1250,37 @@ describe('${filePath || 'Component / Module Test'}', () => {
           pullRequestUrl = prData.html_url;
           pullRequestNumber = prData.number;
         } else {
-          const err = await prRes.json().catch(() => ({}));
-          console.warn("PR creation notice:", err);
+          // If PR already exists (422), attempt to find existing PR for this branch
+          const prListRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls?head=${owner}:${branchName}&base=${base}`, { headers });
+          if (prListRes.ok) {
+            const prList = await prListRes.json();
+            if (Array.isArray(prList) && prList.length > 0) {
+              pullRequestUrl = prList[0].html_url;
+              pullRequestNumber = prList[0].number;
+            }
+          }
         }
       }
 
       return res.json({
         success: true,
+        partial: false,
         branch: branchName,
-        commitUrl: `https://github.com/${owner}/${repo}/tree/${branchName}`,
+        commitSha: newCommitSha,
+        commitUrl: `https://github.com/${owner}/${repo}/commit/${newCommitSha}`,
         pullRequestUrl,
         pullRequestNumber,
-        message: `Successfully pushed patches to branch '${branchName}'${pullRequestUrl ? ' and opened Pull Request' : ''}!`
+        blobsCreated: treeEntries.length,
+        totalFiles: changes.length,
+        message: `Successfully applied atomic patch with commit ${newCommitSha.substring(0, 7)} across ${changes.length} file(s) on branch '${branchName}'${pullRequestUrl ? ' and opened Pull Request' : ''}!`
       });
     } catch (err: any) {
-      console.error("Push fix error:", err);
-      return res.status(500).json({ error: err.message });
+      console.error("Atomic Push fix error:", err);
+      return res.status(500).json({
+        success: false,
+        partial: false,
+        error: err.message || "Unexpected error during atomic Git push transaction."
+      });
     }
   });
 

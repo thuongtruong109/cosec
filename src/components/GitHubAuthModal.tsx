@@ -30,6 +30,8 @@ export default function GitHubAuthModal({ isOpen, onClose, onSuccess }: GitHubAu
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copiedCallback, setCopiedCallback] = useState(false);
 
+  const [selectedScope, setSelectedScope] = useState<'public_repo,read:user,user:email' | 'repo,read:user,user:email'>('public_repo,read:user,user:email');
+
   // Auto detect if OAuth is configured; if not, prefer PAT tab seamlessly
   useEffect(() => {
     if (oauthConfig && oauthConfig.configured) {
@@ -56,7 +58,7 @@ export default function GitHubAuthModal({ isOpen, onClose, onSuccess }: GitHubAu
         setIsSubmitting(false);
         return;
       }
-      await loginWithOAuth();
+      await loginWithOAuth(selectedScope);
     } catch (err: any) {
       console.warn('OAuth flow note:', err);
       // If OAuth not configured, fallback to PAT cleanly
@@ -278,15 +280,78 @@ export default function GitHubAuthModal({ isOpen, onClose, onSuccess }: GitHubAu
               </div>
 
               {oauthConfig?.configured ? (
-                <button
-                  onClick={handleOAuthClick}
-                  disabled={isSubmitting}
-                  className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-slate-950 font-bold text-sm flex items-center justify-center space-x-2 transition-all shadow-lg hover:shadow-xl cursor-pointer disabled:opacity-50"
-                >
-                  <Github size={18} />
-                  <span>{isSubmitting ? 'Opening GitHub Authorization...' : 'Sign in with GitHub'}</span>
-                  <ArrowRight size={16} />
-                </button>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-between">
+                      <span>Select Permission Scope</span>
+                      <span className="text-[11px] text-indigo-500 font-mono">Principle of Least Privilege</span>
+                    </label>
+                    <div className="space-y-2">
+                      <div
+                        onClick={() => setSelectedScope('public_repo,read:user,user:email')}
+                        className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start space-x-3 ${
+                          selectedScope === 'public_repo,read:user,user:email'
+                            ? 'bg-indigo-500/10 border-indigo-500/50 dark:bg-indigo-950/40 dark:border-indigo-500/50'
+                            : 'bg-slate-50 dark:bg-zinc-950/60 border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="oauthScope"
+                          checked={selectedScope === 'public_repo,read:user,user:email'}
+                          onChange={() => setSelectedScope('public_repo,read:user,user:email')}
+                          className="mt-0.5 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">Public Repositories Only</span>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                              Recommended
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                            Analyze public repos and push PRs without granting read/write access to proprietary private code.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div
+                        onClick={() => setSelectedScope('repo,read:user,user:email')}
+                        className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start space-x-3 ${
+                          selectedScope === 'repo,read:user,user:email'
+                            ? 'bg-indigo-500/10 border-indigo-500/50 dark:bg-indigo-950/40 dark:border-indigo-500/50'
+                            : 'bg-slate-50 dark:bg-zinc-950/60 border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="oauthScope"
+                          checked={selectedScope === 'repo,read:user,user:email'}
+                          onChange={() => setSelectedScope('repo,read:user,user:email')}
+                          className="mt-0.5 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">All Repositories (Public + Private)</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                            Full access to private repositories for internal enterprise and proprietary projects.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleOAuthClick}
+                    disabled={isSubmitting}
+                    className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-slate-950 font-bold text-sm flex items-center justify-center space-x-2 transition-all shadow-lg hover:shadow-xl cursor-pointer disabled:opacity-50"
+                  >
+                    <Github size={18} />
+                    <span>{isSubmitting ? 'Opening GitHub Authorization...' : 'Sign in with GitHub'}</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
               ) : (
                 <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs space-y-2">
                   <div className="flex items-center space-x-1.5 font-semibold">

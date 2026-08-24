@@ -13,7 +13,7 @@ interface GitHubContextType {
   isLoadingRepos: boolean;
   oauthConfig: GitHubAuthUrlResponse | null;
   authError: string | null;
-  loginWithOAuth: () => Promise<void>;
+  loginWithOAuth: (scope?: string) => Promise<void>;
   loginWithToken: (patToken: string) => Promise<boolean>;
   logout: () => void;
   refreshRepos: () => Promise<void>;
@@ -90,7 +90,7 @@ export const GitHubProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   // Listen for OAuth message from callback popup window
   useEffect(() => {
     const handleOAuthMessage = (event: MessageEvent) => {
-      // Validate origin safely
+      // Validate origin strictly
       const origin = event.origin || '';
       const isAllowedOrigin = 
         origin === window.location.origin ||
@@ -104,14 +104,16 @@ export const GitHubProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }
 
       if (event.data?.type === 'GITHUB_OAUTH_SUCCESS') {
-        const { token: newToken, user: userData } = event.data;
-        if (newToken) {
-          localStorage.setItem(GITHUB_TOKEN_KEY, newToken);
-          setToken(newToken);
+        const receivedToken = event.data.sessionId || event.data.token;
+        const userData = event.data.user;
+        if (receivedToken) {
+          localStorage.setItem(GITHUB_TOKEN_KEY, receivedToken);
+          setToken(receivedToken);
           if (userData) {
             setUser(userData);
           }
           setAuthError(null);
+          fetchReposForToken(receivedToken);
         }
       } else if (event.data?.type === 'GITHUB_OAUTH_ERROR') {
         setAuthError(event.data.error || 'GitHub authorization failed');
@@ -122,10 +124,10 @@ export const GitHubProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     return () => window.removeEventListener('message', handleOAuthMessage);
   }, []);
 
-  const loginWithOAuth = useCallback(async () => {
+  const loginWithOAuth = useCallback(async (scope?: string) => {
     setAuthError(null);
     try {
-      const config = await getGitHubAuthUrl();
+      const config = await getGitHubAuthUrl(scope);
       setOauthConfig(config);
 
       if (!config.configured || !config.url) {

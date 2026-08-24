@@ -296,6 +296,11 @@ export interface GitHubPushFixRequest {
 
 export interface GitHubPushFixResult {
   success: boolean;
+  partial?: boolean;
+  failedFiles?: string[];
+  step?: 'validation' | 'blob_creation' | 'tree_creation' | 'commit_creation' | 'branch_update' | 'pr_creation';
+  blobsCreated?: number;
+  totalFiles?: number;
   branch?: string;
   commitSha?: string;
   commitUrl?: string;

@@ -5,6 +5,13 @@ export interface GitHubAuthUrlResponse {
   url: string | null;
   redirectUri: string;
   message?: string;
+  scope?: string;
+  availableScopes?: {
+    scope: string;
+    label: string;
+    description: string;
+    recommended?: boolean;
+  }[];
 }
 
 export interface GitHubImportResponse {
@@ -20,9 +27,13 @@ export interface GitHubImportResponse {
   error?: string;
 }
 
-export async function getGitHubAuthUrl(): Promise<GitHubAuthUrlResponse> {
+export async function getGitHubAuthUrl(scope?: string): Promise<GitHubAuthUrlResponse> {
   const origin = window.location.origin;
-  const res = await fetch(`/api/auth/github/url?origin=${encodeURIComponent(origin)}`);
+  const urlParams = new URLSearchParams({
+    origin,
+    ...(scope ? { scope } : {})
+  });
+  const res = await fetch(`/api/auth/github/url?${urlParams.toString()}`);
   if (!res.ok) {
     throw new Error('Failed to retrieve GitHub auth URL');
   }
@@ -102,10 +113,18 @@ export async function pushFixToGitHub(
     body: JSON.stringify(payload)
   });
 
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'Failed to push fix to GitHub');
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok || !data.success) {
+    return {
+      success: false,
+      partial: data.partial ?? false,
+      failedFiles: data.failedFiles || [],
+      step: data.step,
+      error: data.error || 'Failed to push atomic fix commit to GitHub',
+      message: data.message
+    };
   }
 
-  return res.json();
+  return data;
 }
