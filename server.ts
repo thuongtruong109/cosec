@@ -38,7 +38,7 @@ async function startServer() {
       }
 
       // Step 1: Run comprehensive AST symbol extractor & static security/quality scanner on 100% of files
-      const staticReport: StaticAnalysisReport = runComprehensiveStaticAnalysis(
+      const staticReport: StaticAnalysisReport = await runComprehensiveStaticAnalysis(
         files,
         projectName || 'Repository'
       );
@@ -218,8 +218,10 @@ Return a JSON object matching this exact schema:
               analysis: {
                 ...parsed,
                 issues: combinedIssues.length > 0 ? combinedIssues : staticReport.issues,
-                architectureNodes: parsed.architectureNodes?.length > 0 ? parsed.architectureNodes : staticReport.architectureNodes,
-                dependencies: parsed.dependencies?.length > 0 ? parsed.dependencies : staticReport.dependencies,
+                architectureNodes: staticReport.architectureNodes.length > 0 ? staticReport.architectureNodes : (parsed.architectureNodes || []),
+                architectureEdges: staticReport.architectureEdges || [],
+                architecturalSmells: staticReport.architecturalSmells || [],
+                dependencies: staticReport.dependencies.length > 0 ? staticReport.dependencies : (parsed.dependencies || []),
                 securitySummary: staticReport.securitySummary,
                 qualitySummary: staticReport.qualitySummary,
                 fileStats: staticReport.fileStats,

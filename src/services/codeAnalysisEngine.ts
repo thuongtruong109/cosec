@@ -1,6 +1,8 @@
 import {
   CodeIssue,
   ArchitectureNode,
+  ArchitectureEdge,
+  ArchitecturalSmell,
   DependencyItem,
   ProjectHealthScores,
   SecuritySummary,
@@ -9,6 +11,8 @@ import {
   TaintFlow,
   TaintFlowStep
 } from '../types';
+import { extractDependenciesFromCodebase, queryOsvVulnerabilities } from './osvService';
+import { buildArchitectureGraph } from './architectureEngine';
 
 export interface SymbolInfo {
   name: string;
@@ -23,6 +27,8 @@ export interface StaticAnalysisReport {
   scores: ProjectHealthScores;
   issues: CodeIssue[];
   architectureNodes: ArchitectureNode[];
+  architectureEdges?: ArchitectureEdge[];
+  architecturalSmells?: ArchitecturalSmell[];
   dependencies: DependencyItem[];
   securitySummary: SecuritySummary;
   qualitySummary: CodeQualitySummary;
@@ -468,16 +474,15 @@ export function analyzeDataFlowAndTaint(file: FileItem): { issues: CodeIssue[]; 
 }
 
 /**
- * Scan all files with Tier 1 (Deterministic Rules & Entropy Secrets), Tier 2 (AST Taint Tracking), and CVE audits
+ * Scan all files with Tier 1 (Deterministic Rules & Entropy Secrets), Tier 2 (AST Taint Tracking), OSV Supply Chain Audits, and Dynamic Architecture Graph Engine
  */
-export function runComprehensiveStaticAnalysis(
+export async function runComprehensiveStaticAnalysis(
   files: FileItem[],
   projectName: string
-): StaticAnalysisReport {
+): Promise<StaticAnalysisReport> {
   const issues: CodeIssue[] = [];
   const allSymbols: SymbolInfo[] = [];
   const allTaintFlows: TaintFlow[] = [];
-  const dependencies: DependencyItem[] = [];
 
   let sqlCount = 0;
   let secretCount = 0;
@@ -494,73 +499,10 @@ export function runComprehensiveStaticAnalysis(
   let totalLines = 0;
   const langCounts: Record<string, number> = {};
 
-  // Architecture mapping collectors
-  const hasFrontend = files.some((f) => f.path.includes('/components/') || f.path.includes('/pages/') || f.path.endsWith('.tsx') || f.path.endsWith('.jsx') || f.path.endsWith('.vue'));
-  const hasApi = files.some((f) => f.path.includes('/routes/') || f.path.includes('/controllers/') || f.path.includes('/api/') || f.content.includes('express') || f.content.includes('fastapi'));
-  const hasAuth = files.some((f) => f.path.toLowerCase().includes('auth') || f.content.includes('jsonwebtoken') || f.content.includes('passport') || f.content.includes('jwt.verify'));
-  const hasDb = files.some((f) => f.path.includes('/db') || f.path.includes('/models/') || f.path.includes('/entities/') || f.content.includes('pg') || f.content.includes('mongoose') || f.content.includes('prisma'));
-  const hasExternal = files.some((f) => f.content.includes('stripe') || f.content.includes('aws-sdk') || f.content.includes('twilio') || f.content.includes('axios') || f.content.includes('fetch('));
-
-  // 1. Dependency Vulnerability Audit
-  const packageJsonFile = files.find((f) => f.name === 'package.json');
-  if (packageJsonFile) {
-    try {
-      const pkg = JSON.parse(packageJsonFile.content);
-      const allDeps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
-
-      Object.entries(allDeps).forEach(([name, ver]: [string, any]) => {
-        const strVer = String(ver);
-        const known = KNOWN_CVE_CATALOG[name];
-
-        if (known && isVersionOlder(strVer, known.vulnerableBelow)) {
-          dependencies.push({
-            name,
-            version: strVer,
-            latestVersion: known.fix,
-            riskLevel: known.risk,
-            vulnerability: `${known.cve}: ${known.desc}`,
-            cve: known.cve,
-            license: 'MIT',
-            usageFile: 'package.json',
-            description: `Outdated package with known security advisory. Upgrade to ${known.fix}`,
-          });
-
-          issues.push({
-            id: `dep-${name}-${issues.length}`,
-            severity: known.risk === 'critical' ? 'critical' : 'high',
-            category: 'dependency',
-            title: `Vulnerable Dependency: ${name} (${strVer})`,
-            file: packageJsonFile.path,
-            line: 1,
-            confidence: 0.99,
-            analysisTier: 'tier1_rules',
-            description: `${name} version ${strVer} is vulnerable to ${known.cve} (${known.desc}).`,
-            whyItMatters: 'Vulnerable third-party libraries introduce supply chain attack vectors and automated exploits.',
-            potentialImpact: 'Remote code execution, prototype pollution, or denial of service depending on exploit chain.',
-            exploitationScenario: `Attackers leverage public exploits targeting ${known.cve} in package ${name}.`,
-            recommendation: `Upgrade ${name} to ${known.fix} in package.json and run npm install.`,
-            originalCode: `"${name}": "${strVer}"`,
-            suggestedFix: `"${name}": "${known.fix}"`,
-            status: 'open',
-            cwe: 'CWE-1395',
-            references: [`https://nvd.nist.gov/vuln/detail/${known.cve}`],
-          });
-        } else {
-          dependencies.push({
-            name,
-            version: strVer,
-            latestVersion: strVer,
-            riskLevel: 'safe',
-            license: 'MIT',
-            usageFile: 'package.json',
-            description: `${name} runtime library`,
-          });
-        }
-      });
-    } catch {
-      // Ignored if malformed json
-    }
-  }
+  // 1. Dependency Vulnerability Audit with real OSV API and Lockfile resolution
+  const extractedDeps = extractDependenciesFromCodebase(files);
+  const { items: dependencies, issues: depIssues } = await queryOsvVulnerabilities(extractedDeps);
+  issues.push(...depIssues);
 
   // 2. Iterate through 100% of files with Tier 1 & Tier 2 analyzers
   files.forEach((file) => {
@@ -813,6 +755,9 @@ export function runComprehensiveStaticAnalysis(
     });
   });
 
+  // Build Granular Multi-Layer Architecture Graph, Cross-Module Call Edges, and Smell Detection
+  const { nodes: architectureNodes, edges: architectureEdges, smells: architecturalSmells } = buildArchitectureGraph(files, issues);
+
   // Calculate scores
   const critCount = issues.filter((i) => i.severity === 'critical').length;
   const highCount = issues.filter((i) => i.severity === 'high').length;
@@ -822,70 +767,10 @@ export function runComprehensiveStaticAnalysis(
   const reliabilityScore = Math.max(45, Math.min(100, Math.round(100 - errorHandlingGapCount * 5 - highCount * 4)));
   const performanceScore = Math.max(50, Math.min(100, Math.round(100 - issues.filter((i) => i.category === 'performance').length * 8)));
   const maintainabilityScore = Math.max(50, Math.min(100, Math.round(100 - (longFunctionCount * 3 + (cyclomaticComplexityTotal > 50 ? 10 : 0)))));
-  const architectureScore = Math.max(50, Math.min(100, Math.round((securityScore + reliabilityScore + maintainabilityScore) / 3)));
+  
+  const smellDeduction = architecturalSmells.length * 8;
+  const architectureScore = Math.max(40, Math.min(100, Math.round(95 - smellDeduction - (architectureNodes.some((n) => n.status === 'critical') ? 15 : 0))));
   const overallScore = Math.round((securityScore * 0.35 + reliabilityScore * 0.2 + performanceScore * 0.15 + maintainabilityScore * 0.15 + architectureScore * 0.15));
-
-  // Build Architecture Nodes
-  const architectureNodes: ArchitectureNode[] = [];
-  if (hasFrontend) {
-    architectureNodes.push({
-      id: 'frontend',
-      label: 'Client / UI Layer',
-      type: 'frontend',
-      connections: hasApi ? ['api'] : [],
-      issuesCount: xssCount,
-      status: xssCount > 0 ? 'warning' : 'healthy',
-      details: `${files.filter((f) => f.path.includes('components') || f.path.endsWith('.tsx') || f.path.endsWith('.jsx')).length} UI components and pages`,
-    });
-  }
-
-  if (hasApi || !hasFrontend) {
-    architectureNodes.push({
-      id: 'api',
-      label: 'API Gateway & Routes',
-      type: 'api',
-      connections: hasAuth ? ['auth'] : hasDb ? ['database'] : [],
-      issuesCount: critCount + highCount,
-      status: critCount > 0 ? 'critical' : highCount > 0 ? 'warning' : 'healthy',
-      details: `${allSymbols.filter((s) => s.kind === 'route').length} registered HTTP routes and controllers`,
-    });
-  }
-
-  if (hasAuth) {
-    architectureNodes.push({
-      id: 'auth',
-      label: 'Auth & Middleware',
-      type: 'auth',
-      connections: hasDb ? ['database'] : [],
-      issuesCount: authCount + secretCount,
-      status: secretCount > 0 ? 'critical' : 'healthy',
-      details: 'JWT token signing, session verification, and access guardrails',
-    });
-  }
-
-  if (hasDb || !hasFrontend) {
-    architectureNodes.push({
-      id: 'database',
-      label: 'Data Access & Storage',
-      type: 'database',
-      connections: hasExternal ? ['external'] : [],
-      issuesCount: sqlCount,
-      status: sqlCount > 0 ? 'critical' : 'healthy',
-      details: `${allSymbols.filter((s) => s.kind === 'query').length} database query statements and entity models`,
-    });
-  }
-
-  if (hasExternal) {
-    architectureNodes.push({
-      id: 'external',
-      label: 'External Integrations',
-      type: 'external',
-      connections: [],
-      issuesCount: ssrfCount,
-      status: ssrfCount > 0 ? 'warning' : 'healthy',
-      details: 'Third-party APIs, webhooks, and external cloud services',
-    });
-  }
 
   // Language Breakdown
   const languageBreakdown = Object.entries(langCounts)
@@ -915,6 +800,8 @@ export function runComprehensiveStaticAnalysis(
     },
     issues,
     architectureNodes,
+    architectureEdges,
+    architecturalSmells,
     dependencies,
     securitySummary: {
       sqlInjection: sqlCount,

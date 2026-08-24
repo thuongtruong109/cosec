@@ -114,20 +114,73 @@ export interface CodeQualitySummary {
 export interface ArchitectureNode {
   id: string;
   label: string;
-  type: 'frontend' | 'api' | 'auth' | 'services' | 'database' | 'external';
+  type: 'frontend' | 'api' | 'auth' | 'services' | 'database' | 'external' | 'queue';
+  layer?: number; // 0=Client, 1=Gateway/API, 2=Domain Services, 3=Data/Queue, 4=External
   connections: string[]; // target IDs
+  inboundConnections?: string[]; // source IDs
+  files?: string[];
+  symbols?: string[];
   issuesCount: number;
   status: 'healthy' | 'warning' | 'critical';
+  technologies?: string[];
   details?: string;
 }
 
+export interface ArchitectureEdge {
+  id: string;
+  source: string;
+  target: string;
+  sourceLabel?: string;
+  targetLabel?: string;
+  type: 'http_rest' | 'function_call' | 'module_import' | 'database_query' | 'queue_event' | 'external_api';
+  label: string;
+  strength: 'high' | 'medium' | 'low';
+  risk: 'safe' | 'low' | 'medium' | 'high' | 'critical';
+  riskDetails?: string;
+}
+
+export interface ArchitecturalSmell {
+  id: string;
+  title: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  category: 'coupling' | 'layer_violation' | 'circular_dependency' | 'god_module' | 'insecure_egress' | 'resilience';
+  description: string;
+  affectedNodes: string[];
+  affectedFiles: string[];
+  recommendation: string;
+}
+
+export interface VulnerabilityDetail {
+  id: string; // GHSA or CVE ID
+  aliases: string[]; // ['CVE-2021-23337', 'GHSA-xxxx-xxxx']
+  summary: string;
+  details?: string;
+  fixedIn?: string;
+  cvssScore?: number;
+  cvssVector?: string;
+  severity?: 'critical' | 'high' | 'medium' | 'low';
+  exploitAvailable?: boolean;
+  published?: string;
+  references?: string[];
+}
+
 export interface DependencyItem {
+  id?: string;
   name: string;
   version: string;
+  resolvedVersion?: string;
   latestVersion?: string;
+  ecosystem?: 'npm' | 'PyPI' | 'Go' | 'crates.io' | 'Maven' | 'Packagist' | 'RubyGems' | string;
+  isDirect?: boolean;
+  isTransitive?: boolean;
+  dependencyPath?: string[];
   riskLevel: 'critical' | 'high' | 'medium' | 'low' | 'safe';
+  vulnerabilities?: VulnerabilityDetail[];
   vulnerability?: string;
   cve?: string;
+  ghsa?: string;
+  fixedIn?: string;
+  exploitAvailable?: boolean;
   license: string;
   usageFile: string;
   description: string;
@@ -143,6 +196,8 @@ export interface AnalysisResult {
   qualitySummary: CodeQualitySummary;
   issues: CodeIssue[];
   architectureNodes: ArchitectureNode[];
+  architectureEdges?: ArchitectureEdge[];
+  architecturalSmells?: ArchitecturalSmell[];
   dependencies: DependencyItem[];
   languagesBreakdown: { name: string; percentage: number; color: string }[];
   totalFiles: number;

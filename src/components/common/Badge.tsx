@@ -17,6 +17,8 @@ export type BadgeVariant =
   | 'high' 
   | 'medium' 
   | 'low' 
+  | 'warning'
+  | 'safe'
   | 'info' 
   | 'success' 
   | 'open' 
@@ -70,6 +72,12 @@ export default function Badge({
       border: 'border-amber-500/30',
       defaultIcon: <AlertTriangle size={12} className="shrink-0 text-amber-400" />,
     },
+    warning: {
+      bg: 'bg-amber-500/10',
+      text: 'text-amber-400',
+      border: 'border-amber-500/30',
+      defaultIcon: <AlertTriangle size={12} className="shrink-0 text-amber-400" />,
+    },
     medium: {
       bg: 'bg-yellow-500/10',
       text: 'text-yellow-400',
@@ -81,6 +89,12 @@ export default function Badge({
       text: 'text-blue-400',
       border: 'border-blue-500/30',
       defaultIcon: <Info size={12} className="shrink-0 text-blue-400" />,
+    },
+    safe: {
+      bg: 'bg-emerald-500/10',
+      text: 'text-emerald-400',
+      border: 'border-emerald-500/30',
+      defaultIcon: <CheckCircle2 size={12} className="shrink-0 text-emerald-400" />,
     },
     blue: {
       bg: 'bg-blue-500/10',
