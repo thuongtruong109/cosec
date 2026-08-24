@@ -90,9 +90,16 @@ export const GitHubProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   // Listen for OAuth message from callback popup window
   useEffect(() => {
     const handleOAuthMessage = (event: MessageEvent) => {
-      // Validate origin if needed (preview run.app or localhost)
-      const origin = event.origin;
-      if (!origin.endsWith('.run.app') && !origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+      // Validate origin safely
+      const origin = event.origin || '';
+      const isAllowedOrigin = 
+        origin === window.location.origin ||
+        origin.endsWith('.run.app') || 
+        origin.includes('localhost') || 
+        origin.includes('127.0.0.1') ||
+        origin.includes('googleusercontent.com');
+
+      if (!isAllowedOrigin) {
         return;
       }
 
@@ -122,7 +129,7 @@ export const GitHubProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setOauthConfig(config);
 
       if (!config.configured || !config.url) {
-        throw new Error(config.message || 'GitHub OAuth credentials (GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET) are not configured. You can use a GitHub Personal Access Token (PAT) below.');
+        throw new Error(config.message || 'GitHub OAuth (GITHUB_CLIENT_ID) is not configured in server environment. Please use a Personal Access Token (PAT) below for instant connection.');
       }
 
       const width = 600;

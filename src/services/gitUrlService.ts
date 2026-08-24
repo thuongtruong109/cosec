@@ -162,20 +162,35 @@ async function fetchGitHubRepo(
           p.endsWith('.env.example') ||
           p.endsWith('dockerfile'))
       );
-    })
-    .slice(0, 30); // top 30 core files
+    });
 
-  onProgress?.(`Found ${codeTree.length} source files. Fetching in parallel batches...`);
+  // Sort blobs with smart prioritization
+  const scoreBlob = (p: string) => {
+    const lp = p.toLowerCase();
+    if (lp.endsWith('package.json') || lp.endsWith('requirements.txt') || lp.endsWith('pom.xml') || lp.endsWith('cargo.toml')) return 100;
+    if (lp.includes('server.') || lp.includes('app.') || lp.includes('main.') || lp.includes('index.')) return 90;
+    if (lp.includes('/auth') || lp.includes('auth.') || lp.includes('middleware')) return 85;
+    if (lp.includes('/routes/') || lp.includes('/controllers/') || lp.includes('/api/')) return 80;
+    if (lp.includes('/models/') || lp.includes('/entities/') || lp.includes('/db/') || lp.includes('database')) return 75;
+    if (lp.includes('/services/') || lp.includes('/lib/')) return 70;
+    if (lp.includes('/components/') || lp.includes('/pages/')) return 60;
+    return 50;
+  };
+
+  const prioritizedTree = [...codeTree].sort((a: any, b: any) => scoreBlob(b.path) - scoreBlob(a.path));
+  const selectedTree = prioritizedTree.slice(0, 80);
+
+  onProgress?.(`Found ${codeTree.length} total source files. Selected top ${selectedTree.length} core files for deep review. Fetching in parallel...`);
 
   const fetchedFiles: ProjectFile[] = [];
   let totalLines = 0;
   const langCounts: Record<string, number> = {};
 
-  // Fetch in concurrent batches of 6 for high speed
-  const BATCH_SIZE = 6;
-  for (let i = 0; i < codeTree.length; i += BATCH_SIZE) {
-    const batch = codeTree.slice(i, i + BATCH_SIZE);
-    onProgress?.(`Downloading files ${i + 1}-${Math.min(i + BATCH_SIZE, codeTree.length)} of ${codeTree.length}...`);
+  // Fetch in concurrent batches of 8 for high speed
+  const BATCH_SIZE = 8;
+  for (let i = 0; i < selectedTree.length; i += BATCH_SIZE) {
+    const batch = selectedTree.slice(i, i + BATCH_SIZE);
+    onProgress?.(`Downloading files ${i + 1}-${Math.min(i + BATCH_SIZE, selectedTree.length)} of ${selectedTree.length}...`);
 
     const results = await Promise.all(
       batch.map(async (item: any) => {

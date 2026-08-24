@@ -295,6 +295,36 @@ export const SAMPLE_ANALYSIS_RESULT: AnalysisResult = {
       file: 'src/controllers/auth.ts',
       line: 14,
       confidence: 0.98,
+      analysisTier: 'tier2_ast_taint',
+      taintFlow: {
+        source: 'req.body.username',
+        sink: 'db.query() at line 18',
+        sinkType: 'sql',
+        isSanitized: false,
+        steps: [
+          {
+            type: 'source',
+            label: 'User input source: req.body (username, password)',
+            file: 'src/controllers/auth.ts',
+            line: 10,
+            snippet: 'const { username, password } = req.body;'
+          },
+          {
+            type: 'step',
+            label: 'Taint propagated into raw SQL query template buffer',
+            file: 'src/controllers/auth.ts',
+            line: 14,
+            snippet: 'const query = "SELECT * FROM users WHERE username = \'" + username + "\' AND password_hash = \'" + password + "\'";'
+          },
+          {
+            type: 'sink',
+            label: 'SQL Database Sink: Raw execution without parameterized binding array',
+            file: 'src/controllers/auth.ts',
+            line: 18,
+            snippet: 'const userResult = await db.query(query);'
+          }
+        ]
+      },
       description: 'User-controlled query parameter `username` and `password` are concatenated directly into a raw SQL query string without parameterization or escaping.',
       whyItMatters: 'SQL Injection allows unauthorized attackers to bypass authentication entirely (e.g. entering `\' OR \'1\'=\'1`), read sensitive user data, modify database records, or drop entire tables.',
       potentialImpact: 'Total database breach, authentication bypass, data tampering, and potential remote command execution on database server.',
@@ -317,6 +347,7 @@ const userResult = await db.query(query, [username, password]);`,
       file: 'src/controllers/auth.ts',
       line: 6,
       confidence: 0.99,
+      analysisTier: 'tier1_rules',
       description: 'The secret key used to sign and verify JSON Web Tokens is hardcoded directly in the source code file with a 365-day expiration time.',
       whyItMatters: 'Hardcoded secrets committed to source repositories can easily be exposed through leaks, public commits, or build artifacts, allowing anyone to forge administrative user tokens.',
       potentialImpact: 'Attain valid token generation for any arbitrary user or role, leading to full authorization bypass.',
@@ -341,6 +372,7 @@ if (!JWT_SECRET) {
       file: 'src/controllers/payment.ts',
       line: 48,
       confidence: 0.95,
+      analysisTier: 'tier3_ai_reasoning',
       description: 'The `refundPayment` endpoint accepts a `chargeId` parameter without checking if the requesting user owns the payment charge or possesses refund administrative privileges.',
       whyItMatters: 'Insecure Direct Object Reference (IDOR) / Broken Object Level Authorization allows users to act upon resources belonging to other accounts.',
       potentialImpact: 'Financial drain via unauthorized refunds triggered by malicious users.',

@@ -19,41 +19,75 @@ export async function requestCodeAnalysis(
     throw new Error(data.error || 'Failed to parse analysis results');
   }
 
+  const totalLines = files.reduce((acc, f) => acc + f.content.split('\n').length, 0);
+
+  // Dynamic language distribution calculation from files
+  const langCounts: Record<string, number> = {};
+  files.forEach((f) => {
+    const ext = f.path.split('.').pop()?.toLowerCase() || 'code';
+    let lang = 'TypeScript';
+    if (ext === 'ts' || ext === 'tsx') lang = 'TypeScript';
+    else if (ext === 'js' || ext === 'jsx') lang = 'JavaScript';
+    else if (ext === 'py') lang = 'Python';
+    else if (ext === 'go') lang = 'Go';
+    else if (ext === 'rs') lang = 'Rust';
+    else if (ext === 'java') lang = 'Java';
+    else if (ext === 'sql') lang = 'SQL';
+    else if (ext === 'json') lang = 'JSON';
+
+    const lines = f.content.split('\n').length;
+    langCounts[lang] = (langCounts[lang] || 0) + lines;
+  });
+
+  const languagesBreakdown = Object.entries(langCounts)
+    .map(([name, count]) => {
+      const percentage = Math.round((count / Math.max(1, totalLines)) * 100);
+      let color = '#3178c6';
+      if (name === 'JavaScript') color = '#f7df1e';
+      if (name === 'Python') color = '#3572A5';
+      if (name === 'Go') color = '#00ADD8';
+      if (name === 'Rust') color = '#dea584';
+      if (name === 'SQL') color = '#e38c00';
+      if (name === 'JSON') color = '#292929';
+      return { name, percentage, color };
+    })
+    .sort((a, b) => b.percentage - a.percentage);
+
+  const issues = data.analysis.issues || [];
+
   return {
     ...data.analysis,
     projectId: `proj-${Date.now()}`,
     projectName,
     analyzedAt: new Date().toISOString(),
     totalFiles: files.length,
-    totalLines: files.reduce((acc, f) => acc + f.content.split('\n').length, 0),
-    languagesBreakdown: [
-      { name: 'TypeScript', percentage: 70, color: '#3178c6' },
-      { name: 'Python', percentage: 20, color: '#3572A5' },
-      { name: 'SQL', percentage: 10, color: '#e38c00' },
+    totalLines,
+    languagesBreakdown: languagesBreakdown.length > 0 ? languagesBreakdown : [
+      { name: 'Plain Text', percentage: 100, color: '#94a3b8' },
     ],
     securitySummary: data.analysis.securitySummary || {
-      sqlInjection: data.analysis.issues?.filter((i: any) => i.title?.toLowerCase().includes('sql')).length || 1,
-      hardcodedSecrets: data.analysis.issues?.filter((i: any) => i.title?.toLowerCase().includes('secret') || i.title?.toLowerCase().includes('key')).length || 1,
-      insecureAuth: 1,
-      xss: 1,
-      unsafeFileHandling: 1,
-      ssrf: 0,
-      pathTraversal: 0,
+      sqlInjection: issues.filter((i: any) => i.cwe === 'CWE-89' || i.title?.toLowerCase().includes('sql') || i.taintFlow?.sinkType === 'sql').length,
+      hardcodedSecrets: issues.filter((i: any) => i.cwe === 'CWE-798' || i.title?.toLowerCase().includes('secret') || i.title?.toLowerCase().includes('key') || i.title?.toLowerCase().includes('token')).length,
+      insecureAuth: issues.filter((i: any) => i.category === 'security' && (i.cwe === 'CWE-287' || i.cwe === 'CWE-306' || i.title?.toLowerCase().includes('auth') || i.title?.toLowerCase().includes('cors') || i.title?.toLowerCase().includes('jwt'))).length,
+      xss: issues.filter((i: any) => i.cwe === 'CWE-79' || i.title?.toLowerCase().includes('xss') || i.taintFlow?.sinkType === 'xss').length,
+      unsafeFileHandling: issues.filter((i: any) => i.cwe === 'CWE-22' || i.cwe === 'CWE-434' || i.title?.toLowerCase().includes('path') || i.title?.toLowerCase().includes('file') || i.title?.toLowerCase().includes('upload')).length,
+      ssrf: issues.filter((i: any) => i.cwe === 'CWE-918' || i.title?.toLowerCase().includes('ssrf') || i.title?.toLowerCase().includes('forgery')).length,
+      pathTraversal: issues.filter((i: any) => i.cwe === 'CWE-22' || i.title?.toLowerCase().includes('traversal')).length,
     },
     qualitySummary: data.analysis.qualitySummary || {
-      cyclomaticComplexity: 'High',
-      duplicationPercentage: 7.2,
-      longFunctionsCount: 3,
-      deadCodeLocations: 2,
-      namingIssues: 5,
-      errorHandlingGaps: 4,
+      cyclomaticComplexity: 'Low',
+      duplicationPercentage: 0,
+      longFunctionsCount: issues.filter((i: any) => i.category === 'maintainability' && (i.title?.toLowerCase().includes('function') || i.title?.toLowerCase().includes('complexity'))).length,
+      deadCodeLocations: issues.filter((i: any) => i.title?.toLowerCase().includes('unused') || i.title?.toLowerCase().includes('dead')).length,
+      namingIssues: issues.filter((i: any) => i.category === 'style').length,
+      errorHandlingGaps: issues.filter((i: any) => i.title?.toLowerCase().includes('error') || i.title?.toLowerCase().includes('catch') || i.title?.toLowerCase().includes('exception')).length,
     },
     issueCounts: {
-      critical: data.analysis.issues?.filter((i: any) => i.severity === 'critical').length || 0,
-      high: data.analysis.issues?.filter((i: any) => i.severity === 'high').length || 0,
-      medium: data.analysis.issues?.filter((i: any) => i.severity === 'medium').length || 0,
-      low: data.analysis.issues?.filter((i: any) => i.severity === 'low').length || 0,
-      info: data.analysis.issues?.filter((i: any) => i.severity === 'info').length || 0,
+      critical: issues.filter((i: any) => i.severity === 'critical').length,
+      high: issues.filter((i: any) => i.severity === 'high').length,
+      medium: issues.filter((i: any) => i.severity === 'medium').length,
+      low: issues.filter((i: any) => i.severity === 'low').length,
+      info: issues.filter((i: any) => i.severity === 'info').length,
     },
   };
 }

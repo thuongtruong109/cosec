@@ -11,6 +11,23 @@ export type IssueCategory =
 
 export type IssueStatus = 'open' | 'fixed' | 'ignored' | 'false_positive';
 
+export interface TaintFlowStep {
+  type: 'source' | 'step' | 'sanitizer' | 'sink';
+  label: string;
+  file: string;
+  line: number;
+  snippet: string;
+}
+
+export interface TaintFlow {
+  source: string;
+  sink: string;
+  sinkType: 'sql' | 'xss' | 'command' | 'path_traversal' | 'ssrf' | 'deserialization' | 'eval';
+  isSanitized: boolean;
+  sanitizerUsed?: string;
+  steps: TaintFlowStep[];
+}
+
 export interface CodeIssue {
   id: string;
   severity: Severity;
@@ -31,6 +48,8 @@ export interface CodeIssue {
   status: IssueStatus;
   cwe?: string;
   references?: string[];
+  analysisTier?: 'tier1_rules' | 'tier2_ast_taint' | 'tier3_ai_reasoning';
+  taintFlow?: TaintFlow;
 }
 
 export interface FileItem {

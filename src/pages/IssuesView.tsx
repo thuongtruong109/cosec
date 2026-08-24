@@ -11,7 +11,14 @@ import {
   Download,
   Trash2,
   Filter,
-  GitPullRequest
+  GitPullRequest,
+  Workflow,
+  ArrowRight,
+  ShieldAlert,
+  Terminal,
+  Cpu,
+  Layers,
+  Flame
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AnalysisResult, CodeIssue, Project } from '../types';
@@ -32,6 +39,7 @@ export default function IssuesView({ analysis, project, onNavigateExplorer }: Is
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedTier, setSelectedTier] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [groupBy, setGroupBy] = useState<'severity' | 'file'>('severity');
   const [expandedIssueId, setExpandedIssueId] = useState<string | null>(null);
@@ -63,6 +71,7 @@ export default function IssuesView({ analysis, project, onNavigateExplorer }: Is
     if (selectedSeverity !== 'all' && issue.severity !== selectedSeverity) return false;
     if (selectedCategory !== 'all' && issue.category !== selectedCategory) return false;
     if (selectedStatus !== 'all' && issue.status !== selectedStatus) return false;
+    if (selectedTier !== 'all' && issue.analysisTier !== selectedTier) return false;
     if (
       searchQuery.trim() &&
       !issue.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -142,12 +151,19 @@ export default function IssuesView({ analysis, project, onNavigateExplorer }: Is
     { value: 'ignored', label: 'Dismissed / Ignored' },
   ];
 
+  const tierOptions: SelectOption[] = [
+    { value: 'all', label: 'All Analysis Tiers' },
+    { value: 'tier3_ai_reasoning', label: 'Tier 3: AI Semantic Reasoning', badge: 'Gemini 3.7', badgeColor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30' },
+    { value: 'tier2_ast_taint', label: 'Tier 2: AST Taint Traces', badge: 'Source-to-Sink', badgeColor: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30' },
+    { value: 'tier1_rules', label: 'Tier 1: Deterministic Rules', badge: 'OWASP / CWE', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30' },
+  ];
+
   return (
     <div className="p-6 sm:p-8 max-w-7xl mx-auto space-y-6 select-none font-sans">
       {/* Header */}
       <PageHeader
         title="Issue Explorer & Triage"
-        subtitle={`${filteredIssues.length} of ${analysis.issues.length} detected findings`}
+        subtitle={`${filteredIssues.length} of ${analysis.issues.length} detected findings across 3-tier analysis engine`}
         icon={<AlertTriangle size={22} />}
         actions={
           <div className="flex items-center space-x-1.5 bg-slate-100 dark:bg-zinc-900/90 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 text-xs font-mono">
@@ -180,7 +196,7 @@ export default function IssuesView({ analysis, project, onNavigateExplorer }: Is
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2 }}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-white dark:bg-zinc-900/80 p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800/90 text-xs shadow-lg backdrop-blur-sm"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 bg-white dark:bg-zinc-900/80 p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800/90 text-xs shadow-lg backdrop-blur-sm"
       >
         {/* Search */}
         <div className="relative flex items-center">
@@ -216,6 +232,14 @@ export default function IssuesView({ analysis, project, onNavigateExplorer }: Is
           value={selectedStatus}
           onChange={setSelectedStatus}
           placeholder="Filter Status"
+        />
+
+        {/* Tier Filter */}
+        <CustomSelect
+          options={tierOptions}
+          value={selectedTier}
+          onChange={setSelectedTier}
+          placeholder="Filter Tier"
         />
       </motion.div>
 
@@ -260,42 +284,11 @@ export default function IssuesView({ analysis, project, onNavigateExplorer }: Is
               </button>
 
               <button
-                onClick={() => {
-                  const selectedIssuesWithFixes = analysis.issues.filter(
-                    (i) => selectedIssueIds.includes(i.id) && (i.fixedCode || i.suggestedFix)
-                  );
-                  const filesMap: { [path: string]: string } = {};
-                  selectedIssuesWithFixes.forEach((iss) => {
-                    filesMap[iss.file] = iss.fixedCode || iss.suggestedFix || '';
-                  });
-                  const filesList = Object.entries(filesMap).map(([path, content]) => ({ path, content }));
-                  if (filesList.length === 0) {
-                    alert('None of the selected issues have automated code fixes.');
-                    return;
-                  }
-                  setFilesToPush(filesList);
-                  setActiveIssueContext(undefined);
-                  setIsPushModalOpen(true);
-                }}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-slate-900 text-xs font-bold flex items-center space-x-1.5 shadow-sm cursor-pointer transition-all"
-              >
-                <GitPullRequest size={14} className="text-indigo-400 dark:text-indigo-600" />
-                <span>Push Fixes to GitHub ({selectedIssueIds.length})</span>
-              </button>
-
-              <button
                 onClick={handleBatchExport}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-200 text-xs font-medium flex items-center space-x-1.5 border border-slate-200 dark:border-zinc-700 shadow-sm cursor-pointer transition-colors"
+                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-medium text-xs flex items-center space-x-1.5 shadow-sm cursor-pointer transition-colors border border-slate-200 dark:border-zinc-700"
               >
                 <Download size={14} />
                 <span>Export JSON</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedIssueIds([])}
-                className="px-2.5 py-1.5 rounded-xl text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white text-xs cursor-pointer"
-              >
-                Clear
               </button>
             </motion.div>
           )}
@@ -354,12 +347,31 @@ export default function IssuesView({ analysis, project, onNavigateExplorer }: Is
                     </Badge>
 
                     <div className="min-w-0">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                         <h3 className="font-semibold text-slate-900 dark:text-zinc-100 text-sm truncate">{issue.title}</h3>
                         {issue.status === 'fixed' && (
                           <Badge variant="fixed" size="xs">
                             Resolved
                           </Badge>
+                        )}
+                        {/* Analysis Tier Badge */}
+                        {issue.analysisTier === 'tier3_ai_reasoning' && (
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-[10px] font-mono font-medium">
+                            <Sparkles size={11} />
+                            <span>Tier 3: AI Reasoning</span>
+                          </span>
+                        )}
+                        {issue.analysisTier === 'tier2_ast_taint' && (
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[10px] font-mono font-medium">
+                            <Workflow size={11} />
+                            <span>Tier 2: AST Taint Trace</span>
+                          </span>
+                        )}
+                        {issue.analysisTier === 'tier1_rules' && (
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-mono font-medium">
+                            <Layers size={11} />
+                            <span>Tier 1: Rule Match</span>
+                          </span>
                         )}
                       </div>
 
@@ -415,7 +427,63 @@ export default function IssuesView({ analysis, project, onNavigateExplorer }: Is
                         <p className="text-xs text-slate-700 dark:text-zinc-300 leading-relaxed font-sans">
                           {issue.description}
                         </p>
+                        {issue.whyItMatters && (
+                          <div className="mt-2 text-xs text-slate-600 dark:text-zinc-400 bg-slate-100/80 dark:bg-zinc-900/80 p-3 rounded-xl border border-slate-200 dark:border-zinc-800">
+                            <span className="font-semibold text-slate-800 dark:text-zinc-200">Why It Matters: </span>
+                            {issue.whyItMatters}
+                          </div>
+                        )}
                       </div>
+
+                      {/* Tier 2: Source-to-Sink Taint Flow Visualizer */}
+                      {issue.taintFlow && (
+                        <div className="space-y-3 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/80 dark:border-indigo-500/20 p-4 rounded-2xl">
+                          <div className="flex items-center justify-between">
+                            <div className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider font-mono flex items-center space-x-1.5">
+                              <Workflow size={14} className="text-indigo-500" />
+                              <span>AST Data-Flow & Taint Trace ({issue.taintFlow.steps.length} Steps)</span>
+                            </div>
+                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                              issue.taintFlow.isSanitized 
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' 
+                                : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                            }`}>
+                              {issue.taintFlow.isSanitized ? 'Sanitized Path' : 'Unsanitized Vulnerability Path'}
+                            </span>
+                          </div>
+
+                          <div className="space-y-2.5 font-mono text-xs">
+                            {issue.taintFlow.steps.map((st, sIdx) => (
+                              <div key={sIdx} className="flex items-start space-x-3 bg-white dark:bg-zinc-900 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm">
+                                <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${
+                                  st.type === 'source'
+                                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                                    : st.type === 'sink'
+                                    ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                                    : st.type === 'sanitizer'
+                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                    : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20'
+                                }`}>
+                                  {sIdx + 1}
+                                </div>
+                                <div className="space-y-1 min-w-0 flex-1">
+                                  <div className="flex items-center justify-between text-[11px]">
+                                    <span className="font-semibold text-slate-800 dark:text-zinc-200 uppercase tracking-tight">
+                                      {st.type}: {st.label}
+                                    </span>
+                                    <span className="text-slate-400 dark:text-zinc-500 text-[10px]">
+                                      {st.file}:{st.line}
+                                    </span>
+                                  </div>
+                                  <div className="p-2 rounded bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-300 text-[11px] overflow-x-auto border border-slate-100 dark:border-zinc-800/80">
+                                    <code>{st.snippet}</code>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Remediation Suggestion */}
                       <div className="space-y-2">
@@ -476,7 +544,7 @@ export default function IssuesView({ analysis, project, onNavigateExplorer }: Is
             <CheckCircle2 size={36} className="text-emerald-500 dark:text-emerald-400 mx-auto" />
             <div className="text-sm font-semibold text-slate-900 dark:text-zinc-200">No issues match current filters</div>
             <div className="text-xs text-slate-500 dark:text-zinc-400 font-mono">
-              Try adjusting your search query, severity, or category filter above.
+              Try adjusting your search query, severity, category, or tier filter above.
             </div>
           </div>
         )}
@@ -493,4 +561,3 @@ export default function IssuesView({ analysis, project, onNavigateExplorer }: Is
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Github, 
   Key, 
@@ -10,7 +10,9 @@ import {
   Lock, 
   Sparkles,
   ArrowRight,
-  Info
+  Info,
+  CheckCircle2,
+  HelpCircle
 } from 'lucide-react';
 import Modal from './common/Modal';
 import { useGitHub } from '../context/GitHubContext';
@@ -23,10 +25,19 @@ interface GitHubAuthModalProps {
 
 export default function GitHubAuthModal({ isOpen, onClose, onSuccess }: GitHubAuthModalProps) {
   const { user, token, isAuthenticated, loginWithOAuth, loginWithToken, logout, oauthConfig, authError, clearError } = useGitHub();
-  const [authMode, setAuthMode] = useState<'oauth' | 'pat'>('oauth');
+  const [authMode, setAuthMode] = useState<'oauth' | 'pat'>('pat');
   const [patInput, setPatInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copiedCallback, setCopiedCallback] = useState(false);
+
+  // Auto detect if OAuth is configured; if not, prefer PAT tab seamlessly
+  useEffect(() => {
+    if (oauthConfig && oauthConfig.configured) {
+      setAuthMode('oauth');
+    } else {
+      setAuthMode('pat');
+    }
+  }, [oauthConfig]);
 
   const callbackUrl = oauthConfig?.redirectUri || `${window.location.origin}/auth/callback`;
 
@@ -40,10 +51,16 @@ export default function GitHubAuthModal({ isOpen, onClose, onSuccess }: GitHubAu
     setIsSubmitting(true);
     clearError();
     try {
+      if (!oauthConfig?.configured) {
+        setAuthMode('pat');
+        setIsSubmitting(false);
+        return;
+      }
       await loginWithOAuth();
-      // Popup handles the rest via message event
     } catch (err: any) {
-      console.warn('OAuth flow error:', err);
+      console.warn('OAuth flow note:', err);
+      // If OAuth not configured, fallback to PAT cleanly
+      setAuthMode('pat');
     } finally {
       setIsSubmitting(false);
     }
@@ -160,17 +177,6 @@ export default function GitHubAuthModal({ isOpen, onClose, onSuccess }: GitHubAu
           {/* Tab selector */}
           <div className="flex p-1 bg-slate-100 dark:bg-zinc-950 rounded-xl border border-slate-200 dark:border-zinc-800 text-xs font-medium">
             <button
-              onClick={() => setAuthMode('oauth')}
-              className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                authMode === 'oauth'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-sm font-semibold'
-                  : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Github size={14} />
-              <span>GitHub OAuth (Recommended)</span>
-            </button>
-            <button
               onClick={() => setAuthMode('pat')}
               className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center space-x-2 transition-all cursor-pointer ${
                 authMode === 'pat'
@@ -179,7 +185,18 @@ export default function GitHubAuthModal({ isOpen, onClose, onSuccess }: GitHubAu
               }`}
             >
               <Key size={14} />
-              <span>Personal Access Token (PAT)</span>
+              <span>Personal Access Token (Instant)</span>
+            </button>
+            <button
+              onClick={() => setAuthMode('oauth')}
+              className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                authMode === 'oauth'
+                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-sm font-semibold'
+                  : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Github size={14} />
+              <span>OAuth Sign-In</span>
             </button>
           </div>
 
@@ -190,27 +207,104 @@ export default function GitHubAuthModal({ isOpen, onClose, onSuccess }: GitHubAu
             </div>
           )}
 
-          {authMode === 'oauth' ? (
+          {authMode === 'pat' ? (
+            <form onSubmit={handlePatSubmit} className="space-y-4">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800 text-xs text-slate-600 dark:text-zinc-300 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-1.5 text-slate-900 dark:text-white font-semibold">
+                    <Sparkles size={14} className="text-indigo-500" />
+                    <span>Instant Direct Token Authentication</span>
+                  </div>
+                  <a
+                    href="https://github.com/settings/tokens/new?scopes=repo,read:user&description=Colens+AI+Code+Reviewer"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/80 text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 text-[11px] font-semibold flex items-center space-x-1"
+                  >
+                    <span>1-Click Generate Token</span>
+                    <ExternalLink size={10} />
+                  </a>
+                </div>
+                <p className="text-[12px] leading-relaxed text-slate-500 dark:text-zinc-400">
+                  Generate a Personal Access Token on GitHub with <code className="bg-slate-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-300 font-mono">repo</code> and <code className="bg-slate-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-300 font-mono">read:user</code> scopes to access your repositories securely.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-between">
+                  <span>GitHub Token (Classic or Fine-Grained)</span>
+                  <span className="text-[11px] text-slate-500 dark:text-zinc-500 font-mono">Starts with ghp_ or github_pat_</span>
+                </label>
+                <input
+                  type="password"
+                  value={patInput}
+                  onChange={(e) => setPatInput(e.target.value)}
+                  placeholder="Paste ghp_... or github_pat_..."
+                  autoFocus
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs font-mono text-slate-900 dark:text-white outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting || !patInput.trim()}
+                className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center space-x-2 transition-all shadow-md cursor-pointer disabled:opacity-50"
+              >
+                <Key size={14} />
+                <span>{isSubmitting ? 'Verifying Token & Scopes...' : 'Connect GitHub Token'}</span>
+              </button>
+
+              <div className="pt-2 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 font-mono">
+                <span className="flex items-center gap-1">
+                  <Lock size={12} className="text-emerald-500" />
+                  <span>Stored securely in local browser session</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <CheckCircle2 size={12} className="text-indigo-500" />
+                  <span>5,000 API req/hr</span>
+                </span>
+              </div>
+            </form>
+          ) : (
             <div className="space-y-4">
               <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800 text-xs text-slate-600 dark:text-zinc-300 space-y-2">
                 <div className="flex items-center space-x-2 text-slate-900 dark:text-white font-semibold">
                   <Sparkles size={15} className="text-indigo-500" />
-                  <span>Instant 1-Click Authentication</span>
+                  <span>GitHub OAuth App Authorization</span>
                 </div>
                 <p className="text-[12px] leading-relaxed text-slate-500 dark:text-zinc-400">
-                  Connect your GitHub account to directly list your public and private repositories, run AST scans, and automatically open PRs with verified security patches.
+                  Connect through a registered GitHub OAuth application to grant instant repository access and 1-click Pull Request push abilities.
                 </p>
               </div>
 
-              <button
-                onClick={handleOAuthClick}
-                disabled={isSubmitting}
-                className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-slate-950 font-bold text-sm flex items-center justify-center space-x-2 transition-all shadow-lg hover:shadow-xl cursor-pointer disabled:opacity-50"
-              >
-                <Github size={18} />
-                <span>{isSubmitting ? 'Opening GitHub Authorization...' : 'Sign in with GitHub'}</span>
-                <ArrowRight size={16} />
-              </button>
+              {oauthConfig?.configured ? (
+                <button
+                  onClick={handleOAuthClick}
+                  disabled={isSubmitting}
+                  className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-slate-950 font-bold text-sm flex items-center justify-center space-x-2 transition-all shadow-lg hover:shadow-xl cursor-pointer disabled:opacity-50"
+                >
+                  <Github size={18} />
+                  <span>{isSubmitting ? 'Opening GitHub Authorization...' : 'Sign in with GitHub'}</span>
+                  <ArrowRight size={16} />
+                </button>
+              ) : (
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs space-y-2">
+                  <div className="flex items-center space-x-1.5 font-semibold">
+                    <Info size={14} className="text-amber-500 shrink-0" />
+                    <span>OAuth App Not Configured</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-slate-600 dark:text-zinc-400">
+                    To use OAuth sign-in, define <code className="font-mono bg-amber-500/20 px-1 py-0.5 rounded text-amber-800 dark:text-amber-200">GITHUB_CLIENT_ID</code> and <code className="font-mono bg-amber-500/20 px-1 py-0.5 rounded text-amber-800 dark:text-amber-200">GITHUB_CLIENT_SECRET</code> in your environment variables.
+                  </p>
+                  <button
+                    onClick={() => setAuthMode('pat')}
+                    className="mt-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center space-x-1.5 cursor-pointer shadow-sm"
+                  >
+                    <Key size={13} />
+                    <span>Switch to Personal Access Token (Instant)</span>
+                  </button>
+                </div>
+              )}
 
               {/* Developer Configuration Info */}
               <div className="pt-3 border-t border-slate-200 dark:border-zinc-800 space-y-2">
@@ -232,42 +326,6 @@ export default function GitHubAuthModal({ isOpen, onClose, onSuccess }: GitHubAu
                 </div>
               </div>
             </div>
-          ) : (
-            <form onSubmit={handlePatSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-between">
-                  <span>GitHub Personal Access Token (classic or fine-grained)</span>
-                  <a
-                    href="https://github.com/settings/tokens/new?scopes=repo,read:user"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center space-x-1 text-[11px]"
-                  >
-                    <span>Generate Token</span>
-                    <ExternalLink size={10} />
-                  </a>
-                </label>
-                <input
-                  type="password"
-                  value={patInput}
-                  onChange={(e) => setPatInput(e.target.value)}
-                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs font-mono text-slate-900 dark:text-white outline-none"
-                />
-                <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-                  Required scopes: <code className="bg-slate-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-300 font-mono">repo</code> (for private repos & PR creation), <code className="bg-slate-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-300 font-mono">read:user</code>.
-                </p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting || !patInput.trim()}
-                className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center space-x-2 transition-all shadow-md cursor-pointer disabled:opacity-50"
-              >
-                <Key size={14} />
-                <span>{isSubmitting ? 'Verifying Token...' : 'Connect with Token'}</span>
-              </button>
-            </form>
           )}
         </div>
       )}

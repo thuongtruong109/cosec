@@ -105,10 +105,10 @@ export default function GitHubRepoBrowser({ onProjectImported }: GitHubRepoBrows
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={() => setShowAuthModal(true)}
-            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-slate-950 font-bold text-xs flex items-center justify-center space-x-2 transition-all shadow-md cursor-pointer"
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center space-x-2 transition-all shadow-md hover:shadow-lg cursor-pointer"
           >
             <Github size={16} />
-            <span>Sign in with GitHub (OAuth)</span>
+            <span>Connect GitHub Account</span>
             <ArrowRight size={14} />
           </button>
         </div>

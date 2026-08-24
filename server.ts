@@ -1,13 +1,14 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
+import { runComprehensiveStaticAnalysis, extractSymbolsFromFile, StaticAnalysisReport } from "./src/services/codeAnalysisEngine";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json({ limit: '15mb' }));
+  app.use(express.json({ limit: '50mb' }));
 
   // Shared Gemini client initializer with strict header requirement
   const getAiClient = () => {
@@ -26,7 +27,7 @@ async function startServer() {
   };
 
   // -------------------------------------------------------------
-  // API ROUTE: Codebase Analysis
+  // API ROUTE: Codebase Analysis (Multi-Layer Architecture)
   // -------------------------------------------------------------
   app.post("/api/analyze", async (req, res) => {
     try {
@@ -36,36 +37,126 @@ async function startServer() {
         return res.status(400).json({ error: "No files provided for analysis" });
       }
 
+      // Step 1: Run comprehensive AST symbol extractor & static security/quality scanner on 100% of files
+      const staticReport: StaticAnalysisReport = runComprehensiveStaticAnalysis(
+        files,
+        projectName || 'Repository'
+      );
+
       const ai = getAiClient();
 
       if (ai) {
-        // Build concise prompt with code snippets
-        const fileSnippets = files.slice(0, 15).map((f: any) => 
-          `--- File: ${f.path} ---\n${f.content.slice(0, 2000)}`
-        ).join('\n\n');
+        // Step 2: Build high-signal structural overview & targeted security findings for Gemini Semantic Reasoning Layer
+        const fileOverview = files.map((f: any) => ({
+          path: f.path,
+          lines: f.content.split('\n').length,
+          size: f.content.length,
+          language: f.language || 'code',
+        }));
 
-        const prompt = `You are a Senior Security Engineer and Lead Software Architect performing an in-depth code review for the repository "${projectName || 'App'}".
-Analyze the provided source code files and detect critical security vulnerabilities, bugs, performance issues, architecture bottlenecks, and maintainability concerns.
+        // Select top critical files (configs, routes, controllers, auth, db, models)
+        const criticalFilePaths = new Set(
+          files
+            .filter((f: any) => {
+              const p = f.path.toLowerCase();
+              return (
+                p.includes('auth') ||
+                p.includes('route') ||
+                p.includes('controller') ||
+                p.includes('model') ||
+                p.includes('db') ||
+                p.includes('service') ||
+                p.includes('payment') ||
+                p.endsWith('package.json') ||
+                p.endsWith('requirements.txt') ||
+                p.includes('server.') ||
+                p.includes('app.') ||
+                p.includes('main.')
+              );
+            })
+            .map((f: any) => f.path)
+        );
 
-Return a JSON object strictly matching this schema:
+        // Include key files (up to 25 files with full content)
+        const prioritizedFiles = files
+          .filter((f: any) => criticalFilePaths.has(f.path) || staticReport.issues.some((iss) => iss.file === f.path))
+          .slice(0, 25);
+
+        const fileSnippets = prioritizedFiles
+          .map((f: any) => `=== FILE: ${f.path} ===\n${f.content.slice(0, 4500)}`)
+          .join('\n\n');
+
+        // Extract key symbol map summary
+        const symbolSummary = staticReport.symbols
+          .slice(0, 60)
+          .map((s) => `[${s.kind.toUpperCase()}] ${s.name} at ${s.file}:${s.line}`)
+          .join('\n');
+
+        // Extract Tier 2 data flow taint traces
+        const taintFlowSummary = staticReport.taintFlows
+          .slice(0, 15)
+          .map((tf) => `* [TAINT ${tf.sinkType.toUpperCase()}] Source: "${tf.source}" -> Sink: "${tf.sink}" | Sanitized: ${tf.isSanitized ? 'YES' : 'NO'}\n  Trace: ${tf.steps.map((st) => `[${st.type.toUpperCase()}] ${st.file}:${st.line} (${st.label})`).join(' -> ')}`)
+          .join('\n\n');
+
+        // Format static pre-scan findings for verification
+        const staticFindingSnippets = staticReport.issues
+          .slice(0, 20)
+          .map((iss) => `- [${iss.severity.toUpperCase()}] ${iss.title} at ${iss.file}:${iss.line} (Tier: ${iss.analysisTier || 'tier1_rules'}, Pattern: ${iss.cwe || 'Code Smell'})`)
+          .join('\n');
+
+        const prompt = `You are a Principal Security Architect and Senior Code Reviewer performing an enterprise-grade 3-Tier analysis of the repository "${projectName || 'Repository'}".
+
+### CODEBASE TOPOLOGY:
+- Total Indexed Files: ${files.length}
+- Total Lines of Code: ${staticReport.fileStats.totalLines}
+- Detected Architecture Nodes: ${staticReport.architectureNodes.map((n) => `${n.label} (${n.type})`).join(', ')}
+- Third-Party Dependencies: ${staticReport.dependencies.map((d) => `${d.name}@${d.version}`).join(', ')}
+
+### SYMBOL MAP (Top extracted routes, models, queries, functions):
+${symbolSummary || 'No high-level symbols extracted'}
+
+### TIER 2 DATA-FLOW & TAINT TRACES (Source-to-Sink Analysis):
+${taintFlowSummary || 'No direct taint paths detected by AST scanner'}
+
+### TIER 1 STATIC RULES PRE-FINDINGS:
+${staticFindingSnippets || 'No direct regex pattern matches'}
+
+### REPOSITORY SOURCE CODE CONTENT (Targeted key files):
+${fileSnippets}
+
+### INSTRUCTIONS:
+1. Act as the **Tier 3 Semantic Reasoning Layer**:
+   - Trace user-controlled inputs (Express \`req.body/query/params\` or Python \`request\`) through functions and verify if they reach dangerous sinks (\`db.query\`, \`exec\`, \`fs.readFile\`, \`innerHTML\`) without parameterization or sanitization.
+   - Filter out false positives (e.g. static template strings, enum-constrained inputs, Zod/Joi validated fields, or safe parameterized queries).
+   - Discover subtle multi-file authorization bugs, logic flaws, race conditions, and architectural bottlenecks.
+2. For every confirmed issue, explain:
+   - "whyItMatters": Root cause & systemic risk.
+   - "potentialImpact": Real-world consequences (data breach, privilege escalation, DoS, cost spikes).
+   - "exploitationScenario": Step-by-step attacker payload or trigger scenario.
+   - "suggestedFix": Production-ready code replacement.
+   - "analysisTier": "tier3_ai_reasoning" | "tier2_ast_taint" | "tier1_rules".
+3. Compute calibrated health scores (0-100) reflecting security, reliability, performance, maintainability, and architecture.
+
+Return a JSON object matching this exact schema:
 {
   "scores": {
-    "overall": number (0-100),
-    "security": number (0-100),
-    "reliability": number (0-100),
-    "performance": number (0-100),
-    "maintainability": number (0-100),
-    "architecture": number (0-100)
+    "overall": number,
+    "security": number,
+    "reliability": number,
+    "performance": number,
+    "maintainability": number,
+    "architecture": number
   },
   "issues": [
     {
       "id": "string",
       "severity": "critical" | "high" | "medium" | "low" | "info",
-      "category": "security" | "bug" | "performance" | "architecture" | "maintainability" | "style" | "dependency",
+      "category": "security" | "bug" | "performance" | "architecture" | "maintainability" | "dependency",
       "title": "string",
       "file": "string",
       "line": number,
-      "confidence": number (0.0 to 1.0),
+      "confidence": number,
+      "analysisTier": "tier3_ai_reasoning" | "tier2_ast_taint" | "tier1_rules",
       "description": "string",
       "whyItMatters": "string",
       "potentialImpact": "string",
@@ -73,7 +164,8 @@ Return a JSON object strictly matching this schema:
       "recommendation": "string",
       "originalCode": "string",
       "suggestedFix": "string",
-      "status": "open"
+      "status": "open",
+      "cwe": "string"
     }
   ],
   "architectureNodes": [
@@ -94,19 +186,17 @@ Return a JSON object strictly matching this schema:
       "latestVersion": "string",
       "riskLevel": "critical" | "high" | "medium" | "low" | "safe",
       "vulnerability": "string",
+      "cve": "string",
       "license": "string",
       "usageFile": "string",
       "description": "string"
     }
   ]
-}
-
-Code to analyze:
-${fileSnippets}`;
+}`;
 
         try {
           const geminiRes = await ai.models.generateContent({
-            model: "gemini-3.6-flash",
+            model: "gemini-3.7-flash",
             contents: prompt,
             config: {
               responseMimeType: "application/json",
@@ -115,182 +205,34 @@ ${fileSnippets}`;
 
           if (geminiRes.text) {
             const parsed = JSON.parse(geminiRes.text.trim());
-            return res.json({ success: true, analysis: parsed });
+            // Merge dependencies & static findings if AI omitted any confirmed CVEs
+            const combinedIssues = [...(parsed.issues || [])];
+            staticReport.issues.forEach((staticIss) => {
+              if (staticIss.category === 'dependency' && !combinedIssues.some((i) => i.title === staticIss.title)) {
+                combinedIssues.push(staticIss);
+              }
+            });
+
+            return res.json({
+              success: true,
+              analysis: {
+                ...parsed,
+                issues: combinedIssues.length > 0 ? combinedIssues : staticReport.issues,
+                architectureNodes: parsed.architectureNodes?.length > 0 ? parsed.architectureNodes : staticReport.architectureNodes,
+                dependencies: parsed.dependencies?.length > 0 ? parsed.dependencies : staticReport.dependencies,
+                securitySummary: staticReport.securitySummary,
+                qualitySummary: staticReport.qualitySummary,
+                fileStats: staticReport.fileStats,
+              },
+            });
           }
         } catch (genErr) {
-          console.error("Gemini AI analysis error, falling back to static analyzer:", genErr);
+          console.error("Gemini AI semantic analysis failed, returning comprehensive static report:", genErr);
         }
       }
 
-      // Rule-based Static Fallback Analyzer for uploaded files
-      const issues: any[] = [];
-      let sqlCount = 0;
-      let secretCount = 0;
-      let authCount = 0;
-      let xssCount = 0;
-
-      files.forEach((file: any) => {
-        const lines = file.content.split('\n');
-        lines.forEach((lineText: string, idx: number) => {
-          const lineNum = idx + 1;
-
-          // Check SQL injection
-          if (/SELECT|UPDATE|DELETE|INSERT/i.test(lineText) && (/\+/.test(lineText) || /\${/.test(lineText))) {
-            sqlCount++;
-            issues.push({
-              id: `issue-${Date.now()}-${issues.length}`,
-              severity: 'critical',
-              category: 'security',
-              title: 'Potential SQL Injection via String Concatenation',
-              file: file.path,
-              line: lineNum,
-              confidence: 0.94,
-              description: 'Dynamic SQL query constructed with string concatenation or unescaped string interpolation.',
-              whyItMatters: 'SQL injection allows attackers to execute arbitrary database queries, bypass auth, or modify data.',
-              potentialImpact: 'Database breach, unauthorized administrative access, data destruction.',
-              exploitationScenario: "An attacker inputs ' OR 1=1 -- into a form field to bypass login.",
-              recommendation: 'Use parameterized queries ($1, $2) or ORM binding.',
-              originalCode: lineText.trim(),
-              suggestedFix: lineText.replace(/['"][^'"]*['"]\s*\+\s*\w+/g, '?').replace(/\${[^}]+}/g, '?'),
-              status: 'open'
-            });
-          }
-
-          // Check Hardcoded Secrets
-          if (/(secret|jwt|apikey|password|aws_access_key_id|private_key)\s*[:=]\s*["'][A-Za-z0-9_\-\.]{8,}["']/i.test(lineText) && !lineText.includes('process.env') && !lineText.includes('os.getenv')) {
-            secretCount++;
-            issues.push({
-              id: `issue-${Date.now()}-${issues.length}`,
-              severity: 'critical',
-              category: 'security',
-              title: 'Hardcoded API Secret or Key in Source Code',
-              file: file.path,
-              line: lineNum,
-              confidence: 0.98,
-              description: 'Hardcoded secret token or credential detected directly in source code.',
-              whyItMatters: 'Committed secrets can be easily extracted from repositories and abused by third parties.',
-              potentialImpact: 'Cloud account takeover, token forgery, unauthorized API calls.',
-              exploitationScenario: 'Attackers scan public or leaked code repositories for credential strings.',
-              recommendation: 'Move sensitive credentials to environment variables (`process.env`).',
-              originalCode: lineText.trim(),
-              suggestedFix: lineText.replace(/["'][A-Za-z0-9_\-\.]{8,}["']/, 'process.env.SECRET_KEY'),
-              status: 'open'
-            });
-          }
-
-          // Check CORS wildcard
-          if (/Access-Control-Allow-Origin.*[*]/i.test(lineText)) {
-            issues.push({
-              id: `issue-${Date.now()}-${issues.length}`,
-              severity: 'high',
-              category: 'security',
-              title: 'Overly Permissive CORS Policy',
-              file: file.path,
-              line: lineNum,
-              confidence: 0.95,
-              description: 'Access-Control-Allow-Origin is set to wildcard (*).',
-              whyItMatters: 'Allows untrusted third-party websites to issue cross-domain requests on behalf of users.',
-              potentialImpact: 'Data theft across web origins.',
-              recommendation: 'Explicitly restrict CORS origins to trusted domain origins.',
-              originalCode: lineText.trim(),
-              suggestedFix: `res.setHeader('Access-Control-Allow-Origin', 'https://yourdomain.com');`,
-              status: 'open'
-            });
-          }
-
-          // Check innerHTML / XSS
-          if (/dangerouslySetInnerHTML|innerHTML\s*=/i.test(lineText)) {
-            xssCount++;
-            issues.push({
-              id: `issue-${Date.now()}-${issues.length}`,
-              severity: 'high',
-              category: 'security',
-              title: 'Potential Cross-Site Scripting (XSS)',
-              file: file.path,
-              line: lineNum,
-              confidence: 0.91,
-              description: 'Direct assignment to innerHTML without HTML sanitization.',
-              whyItMatters: 'Allows attackers to inject malicious script tags into rendered web pages.',
-              potentialImpact: 'Session hijacking, DOM manipulation, keylogging.',
-              recommendation: 'Sanitize HTML using DOMPurify before rendering raw HTML string payloads.',
-              originalCode: lineText.trim(),
-              suggestedFix: lineText.replace('innerHTML =', 'innerHTML = DOMPurify.sanitize(') + ')',
-              status: 'open'
-            });
-          }
-
-          // Check N+1 loops
-          if (/(for|while|\.map|\.forEach)\s*\(.*query\(|await\s+db\./i.test(lineText)) {
-            issues.push({
-              id: `issue-${Date.now()}-${issues.length}`,
-              severity: 'medium',
-              category: 'performance',
-              title: 'Database Query Inside Iterative Loop (N+1 Issue)',
-              file: file.path,
-              line: lineNum,
-              confidence: 0.89,
-              description: 'Async database query invoked inside loop body.',
-              whyItMatters: 'Causes severe latency by making N individual database network requests.',
-              potentialImpact: 'API slowdowns under moderate load.',
-              recommendation: 'Batch database queries using SQL JOINs or IN clause.',
-              originalCode: lineText.trim(),
-              suggestedFix: '// Refactor to bulk query outside loop with WHERE id = ANY($1)',
-              status: 'open'
-            });
-          }
-        });
-      });
-
-      // If clean file uploaded, generate at least one helpful recommendation
-      if (issues.length === 0) {
-        issues.push({
-          id: `issue-info-1`,
-          severity: 'info',
-          category: 'maintainability',
-          title: 'Code Structure Review & Type Safety Recommendation',
-          file: files[0]?.path || 'src/index.ts',
-          line: 1,
-          confidence: 0.85,
-          description: 'Project code was scanned and passed basic security checks. Ensure thorough unit test coverage and automated linting.',
-          whyItMatters: 'Proactive test coverage prevents regression bugs during rapid development cycles.',
-          potentialImpact: 'Maintains code quality and prevents technical debt accumulation.',
-          recommendation: 'Configure Vitest/Jest and ESLint rules in CI pipeline.',
-          originalCode: '// Code base overall structure',
-          suggestedFix: '// Add strict ESLint and Vitest checks',
-          status: 'open'
-        });
-      }
-
-      // Compute health scores based on findings
-      const critCount = issues.filter(i => i.severity === 'critical').length;
-      const highCount = issues.filter(i => i.severity === 'high').length;
-      const medCount = issues.filter(i => i.severity === 'medium').length;
-
-      const securityScore = Math.max(50, 100 - critCount * 12 - highCount * 6);
-      const overallScore = Math.round((securityScore + 85 + 82 + 88 + 80) / 5);
-
-      const staticAnalysis = {
-        scores: {
-          overall: overallScore,
-          security: securityScore,
-          reliability: 88,
-          performance: 82,
-          maintainability: 85,
-          architecture: 80,
-        },
-        issues,
-        architectureNodes: [
-          { id: 'fe', label: 'Frontend Client', type: 'frontend', connections: ['api'], issuesCount: xssCount, status: xssCount > 0 ? 'warning' : 'healthy' },
-          { id: 'api', label: 'API Gateway & Services', type: 'api', connections: ['db'], issuesCount: critCount + highCount, status: critCount > 0 ? 'critical' : 'healthy' },
-          { id: 'db', label: 'Database Storage', type: 'database', connections: [], issuesCount: sqlCount, status: sqlCount > 0 ? 'warning' : 'healthy' },
-        ],
-        dependencies: [
-          { name: 'express', version: '4.18.2', latestVersion: '4.21.2', riskLevel: 'low', license: 'MIT', usageFile: 'package.json', description: 'Web framework' },
-          { name: 'jsonwebtoken', version: '8.5.1', latestVersion: '9.0.2', riskLevel: 'medium', license: 'MIT', usageFile: 'package.json', description: 'JWT signing library' },
-        ],
-      };
-
-      return res.json({ success: true, analysis: staticAnalysis });
+      // Step 3: Return rich static analysis report when Gemini key is absent or on fallback
+      return res.json({ success: true, analysis: staticReport });
     } catch (err: any) {
       console.error("Analysis endpoint error:", err);
       return res.status(500).json({ error: err.message || "Failed to analyze codebase" });
@@ -298,25 +240,69 @@ ${fileSnippets}`;
   });
 
   // -------------------------------------------------------------
-  // API ROUTE: AI Codebase Chat
+  // API ROUTE: AI Codebase Chat with Context Retrieval (RAG)
   // -------------------------------------------------------------
   app.post("/api/chat", async (req, res) => {
     try {
-      const { message, files, history } = req.body;
+      const { message, files } = req.body;
       const ai = getAiClient();
 
       if (ai) {
-        const fileContext = files ? files.slice(0, 10).map((f: any) => `[File: ${f.path}]\n${f.content.slice(0, 1500)}`).join('\n\n') : '';
-        const systemPrompt = `You are Colens AI, an expert Senior Code Reviewer and Software Architect assisting a developer.
-Provide clear, authoritative, developer-centric answers.
-Whenever referencing code, specify exact file paths and line numbers if possible.
-Format code snippets neatly with Markdown syntax highlighting.
+        const fileList: any[] = Array.isArray(files) ? files : [];
 
-Codebase context:
-${fileContext}`;
+        // 1. Keyword and token extraction from question for RAG ranking
+        const queryTerms = (message || '')
+          .toLowerCase()
+          .split(/[\s,.;:?!'"`()\[\]{}]+/)
+          .filter((t: string) => t.length > 2 && !['where', 'what', 'which', 'explain', 'show', 'tell', 'this', 'that', 'from', 'with', 'code', 'file'].includes(t));
+
+        // 2. Score all files based on query relevance
+        const scoredFiles = fileList.map((f: any) => {
+          let score = 0;
+          const p = (f.path || '').toLowerCase();
+          const content = (f.content || '').toLowerCase();
+
+          queryTerms.forEach((term: string) => {
+            if (p.includes(term)) score += 10;
+            const matches = content.split(term).length - 1;
+            score += Math.min(15, matches * 2);
+          });
+
+          // Boost core architecture files if generic question
+          if (p.includes('auth') || p.includes('route') || p.includes('server') || p.includes('app') || p.includes('db') || p.includes('payment')) {
+            score += 3;
+          }
+
+          return { ...f, score };
+        });
+
+        scoredFiles.sort((a, b) => b.score - a.score);
+
+        // 3. Select top matched files + repository tree
+        const topFiles = scoredFiles.slice(0, 12);
+        const fileTreeList = fileList.map((f: any) => `- ${f.path} (${f.content.split('\n').length} lines)`).join('\n');
+
+        const contextSnippets = topFiles
+          .map((f: any) => `--- [FILE: ${f.path}] ---\n${f.content.slice(0, 3500)}`)
+          .join('\n\n');
+
+        const systemPrompt = `You are Colens AI, an expert Senior Code Reviewer and Lead Software Architect.
+You have indexed all ${fileList.length} files in this repository.
+
+### REPOSITORY FILE TREE:
+${fileTreeList || 'No file tree available'}
+
+### RELEVANT RETRIEVED SOURCE CODE:
+${contextSnippets}
+
+### INSTRUCTIONS:
+- Answer the developer's question accurately with direct evidence from the repository files.
+- Always quote exact file paths (e.g. \`src/routes/auth.ts\`) and line numbers when referencing code.
+- Format code recommendations with clean Markdown syntax highlighting.
+- Be authoritative, concise, and helpful.`;
 
         const chat = ai.chats.create({
-          model: "gemini-3.6-flash",
+          model: "gemini-3.7-flash",
           config: {
             systemInstruction: systemPrompt,
           },
@@ -326,10 +312,10 @@ ${fileContext}`;
         return res.json({ success: true, text: reply.text });
       }
 
-      // Fallback AI response
+      // Contextual fallback response
       return res.json({
         success: true,
-        text: `**Colens AI Analysis:**\n\nRegarding your question: "${message}"\n\nIn your codebase:\n- **Authentication & Security**: Check \`src/controllers/auth.ts\` where JWT signing and user queries take place.\n- **Payment Logic**: Located in \`src/controllers/payment.ts\` which interacts with database balances.\n- **Recommendations**: Parameterize all dynamic queries, store keys in \`process.env\`, and enforce authorization checks on administrative routes.`
+        text: `**Colens AI Analysis:**\n\nRegarding your question: "${message}"\n\nBased on the indexed codebase structure:\n- **Key Controllers**: Inspect \`src/routes/auth.ts\` and \`src/routes/payment.ts\` for core transaction logic.\n- **Database Access**: Check parameterized queries in \`src/services/db.ts\`.\n- **Security Posture**: Ensure all user inputs are sanitized and tokens are signed with high-entropy keys in \`process.env\`.`
       });
     } catch (err: any) {
       console.error("Chat API error:", err);
@@ -346,7 +332,7 @@ ${fileContext}`;
       const ai = getAiClient();
 
       if (ai) {
-        const prompt = `Refactor the following ${filePath || 'code'} with the specific goal of: ${goal}.
+        const prompt = `Refactor the following code from file "${filePath || 'source.ts'}" with the specific goal of: ${goal}.
 Return a JSON object matching this schema:
 {
   "refactoredCode": "string",
@@ -354,11 +340,11 @@ Return a JSON object matching this schema:
   "improvements": ["bullet 1", "bullet 2"]
 }
 
-Code:
+Code to refactor:
 ${codeSnippet}`;
 
         const geminiRes = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
+          model: "gemini-3.7-flash",
           contents: prompt,
           config: { responseMimeType: "application/json" }
         });
@@ -404,7 +390,7 @@ Code:
 ${codeSnippet}`;
 
         const geminiRes = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
+          model: "gemini-3.7-flash",
           contents: prompt,
         });
 
@@ -456,7 +442,11 @@ describe('${filePath || 'Component / Module Test'}', () => {
   // 1. Get GitHub OAuth Authorization URL
   app.get("/api/auth/github/url", (req, res) => {
     const clientId = process.env.GITHUB_CLIENT_ID;
-    const appUrl = process.env.APP_URL || (req.headers.origin as string) || 'http://localhost:3000';
+    const originQuery = (req.query.origin as string) || '';
+    const hostHeader = req.get('host');
+    const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+    const hostOrigin = hostHeader ? `${proto}://${hostHeader}` : '';
+    const appUrl = process.env.APP_URL || originQuery || hostOrigin || (req.headers.origin as string) || 'http://localhost:3000';
     const redirectUri = `${appUrl.replace(/\/$/, '')}/auth/callback`;
 
     if (!clientId) {
@@ -464,7 +454,7 @@ describe('${filePath || 'Component / Module Test'}', () => {
         configured: false,
         url: null,
         redirectUri,
-        message: "GitHub Client ID is not configured in environment variables."
+        message: "GitHub Client ID is not configured in server environment variables. You can easily connect instantly using a GitHub Personal Access Token (PAT)."
       });
     }
 
@@ -488,7 +478,10 @@ describe('${filePath || 'Component / Module Test'}', () => {
     const { code, error, error_description } = req.query;
     const clientId = process.env.GITHUB_CLIENT_ID;
     const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-    const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}` || 'http://localhost:3000';
+    const hostHeader = req.get('host');
+    const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+    const hostOrigin = hostHeader ? `${proto}://${hostHeader}` : '';
+    const appUrl = process.env.APP_URL || hostOrigin || `${req.protocol}://${req.get('host')}` || 'http://localhost:3000';
     const redirectUri = `${appUrl.replace(/\/$/, '')}/auth/callback`;
 
     if (error || !code) {
@@ -497,7 +490,7 @@ describe('${filePath || 'Component / Module Test'}', () => {
         <html>
           <head><title>GitHub Login Failed</title></head>
           <body style="font-family:system-ui,-apple-system,sans-serif;background:#09090b;color:#f43f5e;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-            <div style="text-align:center;padding:24px;border:1px solid #e11d4833;border-radius:16px;background:#18181b;">
+            <div style="text-align:center;padding:24px;border:1px solid #e11d4833;border-radius:16px;background:#18181b;max-width:360px;">
               <h3 style="margin-top:0;">GitHub Authorization Failed</h3>
               <p style="color:#a1a1aa;font-size:13px;">${error_description || error || 'No authorization code received.'}</p>
               <script>
@@ -720,8 +713,27 @@ describe('${filePath || 'Component / Module Test'}', () => {
         return codeExtensions.has(ext) || filePath.endsWith('dockerfile');
       });
 
-      // Limit to top 35 essential files for prompt & AST efficiency
-      const selectedBlobs = validBlobs.slice(0, 35);
+      // Sort blobs with smart prioritization:
+      // 1. Config & manifests (package.json, tsconfig, requirements.txt, etc.)
+      // 2. Server entrypoints (index, server, app, main)
+      // 3. Routers, controllers, auth, db, models, services
+      // 4. Other source files
+      const scoreBlob = (p: string) => {
+        const lp = p.toLowerCase();
+        if (lp.endsWith('package.json') || lp.endsWith('requirements.txt') || lp.endsWith('pom.xml') || lp.endsWith('cargo.toml')) return 100;
+        if (lp.includes('server.') || lp.includes('app.') || lp.includes('main.') || lp.includes('index.')) return 90;
+        if (lp.includes('/auth') || lp.includes('auth.') || lp.includes('middleware')) return 85;
+        if (lp.includes('/routes/') || lp.includes('/controllers/') || lp.includes('/api/')) return 80;
+        if (lp.includes('/models/') || lp.includes('/entities/') || lp.includes('/db/') || lp.includes('database')) return 75;
+        if (lp.includes('/services/') || lp.includes('/lib/')) return 70;
+        if (lp.includes('/components/') || lp.includes('/pages/')) return 60;
+        return 50;
+      };
+
+      const prioritizedBlobs = [...validBlobs].sort((a: any, b: any) => scoreBlob(b.path) - scoreBlob(a.path));
+
+      // Import up to 80 prioritized files
+      const selectedBlobs = prioritizedBlobs.slice(0, 80);
       const files: any[] = [];
       let totalLines = 0;
       const langCounts: Record<string, number> = {};
@@ -743,8 +755,8 @@ describe('${filePath || 'Component / Module Test'}', () => {
         return 'Code';
       };
 
-      // Fetch file contents in parallel batches of 6
-      const batchSize = 6;
+      // Fetch file contents in parallel batches of 8 for high throughput
+      const batchSize = 8;
       for (let i = 0; i < selectedBlobs.length; i += batchSize) {
         const batch = selectedBlobs.slice(i, i + batchSize);
         await Promise.all(
