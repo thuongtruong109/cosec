@@ -133,6 +133,7 @@ export default function App() {
                   analysis={analysis}
                   onNavigateExplorer={handleNavigateToExplorer}
                   onNavigateIssues={() => setActiveView('issues')}
+                  onNavigate={(v) => setActiveView(v)}
                 />
               )}
 

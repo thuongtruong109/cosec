@@ -51,10 +51,14 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
   }
 
+  button, [role="button"], a, input[type="button"], input[type="submit"] {
+    cursor: pointer;
+  }
+
   /* Compact text selection */
   ::selection {
-    background-color: rgba(99, 102, 241, 0.35);
-    color: #ffffff;
+    background-color: rgba(99, 102, 241, 0.25);
+    color: inherit;
   }
 }
 

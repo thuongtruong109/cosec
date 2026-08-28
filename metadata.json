@@ -1,6 +1,6 @@
 {
-  "name": "Colens AI",
-  "description": "AI-powered senior code reviewer for security vulnerabilities, bugs, performance issues, and architecture analysis.",
+  "name": "Colens",
+  "description": "Comprehensive code review, OWASP security scanner, architecture visualizer, and static analysis platform.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

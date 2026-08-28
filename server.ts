@@ -225,6 +225,7 @@ Return a JSON object matching this exact schema:
                 dependencies: staticReport.dependencies.length > 0 ? staticReport.dependencies : (parsed.dependencies || []),
                 securitySummary: staticReport.securitySummary,
                 qualitySummary: staticReport.qualitySummary,
+                executiveSummary: staticReport.executiveSummary,
                 fileStats: staticReport.fileStats,
               },
             });

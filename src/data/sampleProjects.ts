@@ -286,6 +286,33 @@ export const SAMPLE_ANALYSIS_RESULT: AnalysisResult = {
     namingIssues: 7,
     errorHandlingGaps: 6
   },
+  executiveSummary: {
+    verdict: 'Needs Attention',
+    headline: 'Critical SQL injection taint flows and hardcoded cryptographic credentials require immediate remediation before release.',
+    summary: 'Comprehensive static review evaluated 4 source files (154 lines of code) across TypeScript, Python, and SQL. Analysis identified 2 critical vulnerabilities including direct raw SQL concatenation in authentication handlers and a hardcoded JWT signature secret.',
+    keyStrengths: [
+      'Layered modular architecture with 6 identified architectural service nodes.',
+      'Strong separation of database schema definitions and domain models.',
+      'High reliability baseline with comprehensive database exception handling structure.'
+    ],
+    keyRisks: [
+      '2 Critical security vulnerabilities with active taint paths reaching SQL sinks.',
+      'Vulnerable package dependencies (jsonwebtoken 8.3.0, express 4.16.1) in npm supply chain.',
+      '1 Architectural cyclic smell identified between payment controller and Python reconciliation engine.'
+    ],
+    urgentActionItems: [
+      'Replace string concatenation in auth.ts:33 with parameterized SQL query ($1, $2).',
+      'Migrate hardcoded JWT_SECRET in auth.ts:26 to environment secret configuration.',
+      'Upgrade vulnerable jsonwebtoken package to >= 9.0.2 to fix CVE-2022-23529.'
+    ],
+    scanCoverage: {
+      totalFilesScanned: 4,
+      linesOfCode: 154,
+      astNodesAnalyzed: 86,
+      dependenciesAudited: 4,
+      taintPathsChecked: 3
+    }
+  },
   issues: [
     {
       id: 'issue-101',

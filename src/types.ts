@@ -186,6 +186,22 @@ export interface DependencyItem {
   description: string;
 }
 
+export interface ExecutiveSummary {
+  verdict: 'Excellent' | 'Good' | 'Needs Attention' | 'Critical Risk';
+  headline: string;
+  summary: string;
+  keyStrengths: string[];
+  keyRisks: string[];
+  urgentActionItems: string[];
+  scanCoverage: {
+    totalFilesScanned: number;
+    linesOfCode: number;
+    astNodesAnalyzed: number;
+    dependenciesAudited: number;
+    taintPathsChecked: number;
+  };
+}
+
 export interface AnalysisResult {
   projectId: string;
   projectName: string;
@@ -194,6 +210,7 @@ export interface AnalysisResult {
   issueCounts: IssueCounts;
   securitySummary: SecuritySummary;
   qualitySummary: CodeQualitySummary;
+  executiveSummary?: ExecutiveSummary;
   issues: CodeIssue[];
   architectureNodes: ArchitectureNode[];
   architectureEdges?: ArchitectureEdge[];
