@@ -130,111 +130,6 @@ export default function DashboardView({
         }
       />
 
-      {/* EXECUTIVE SUMMARY & COMMENTARY SECTION */}
-      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-zinc-800">
-          <div className="flex items-center space-x-2.5">
-            <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
-              <Activity size={16} />
-            </div>
-            <div>
-              <h2 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider font-mono">
-                Executive Code Review & Diagnostic Synthesis
-              </h2>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
-                Deep multi-tier static audit (AST Taint Tracking, OSV Vulnerabilities & Architecture Topology)
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border flex items-center gap-1.5 ${verdictBadgeColor}`}>
-              <span className="w-1.5 h-1.5 rounded-full bg-current" />
-              Status: {verdict}
-            </span>
-          </div>
-        </div>
-
-        {/* Executive Headline & Commentary */}
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-900 dark:text-zinc-100 leading-relaxed">
-            {executiveSummary?.headline || 'Comprehensive static review completed with multi-tier vulnerability and architecture analysis.'}
-          </p>
-          <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-            {executiveSummary?.summary || `Analyzed ${analysis.totalFiles} files containing ${analysis.totalLines.toLocaleString()} lines of code. Discovered ${issues.length} total findings across security, reliability, and code health.`}
-          </p>
-        </div>
-
-        {/* Scan Coverage Telemetry Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
-          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-zinc-950/70 border border-slate-200/80 dark:border-zinc-800/80">
-            <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-zinc-400 font-semibold">Files Scanned</div>
-            <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">{analysis.totalFiles} files</div>
-          </div>
-          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-zinc-950/70 border border-slate-200/80 dark:border-zinc-800/80">
-            <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-zinc-400 font-semibold">Code Volume</div>
-            <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">{analysis.totalLines.toLocaleString()} LOC</div>
-          </div>
-          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-zinc-950/70 border border-slate-200/80 dark:border-zinc-800/80">
-            <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-zinc-400 font-semibold">AST Nodes & Symbols</div>
-            <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">{(executiveSummary?.scanCoverage.astNodesAnalyzed || analysis.totalFiles * 22).toLocaleString()}</div>
-          </div>
-          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-zinc-950/70 border border-slate-200/80 dark:border-zinc-800/80">
-            <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-zinc-400 font-semibold">Dependencies Audited</div>
-            <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">{dependencies.length} packages</div>
-          </div>
-          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-zinc-950/70 border border-slate-200/80 dark:border-zinc-800/80 col-span-2 sm:col-span-1">
-            <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-zinc-400 font-semibold">Taint Data-Flow Paths</div>
-            <div className="text-sm font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">{executiveSummary?.scanCoverage.taintPathsChecked ?? (securitySummary.sqlInjection + securitySummary.xss + securitySummary.pathTraversal)} tracked</div>
-          </div>
-        </div>
-
-        {/* 2-Column Strengths vs Risks */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-          {/* Key Strengths */}
-          <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20 space-y-2">
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 font-mono">
-              <CheckCircle size={14} />
-              <span>Architectural Strengths</span>
-            </div>
-            <ul className="space-y-1.5 text-[11px] text-slate-700 dark:text-zinc-300">
-              {(executiveSummary?.keyStrengths || [
-                `Modular architecture with ${architectureNodes.length} component sub-systems.`,
-                'Clean separation of concerns between layers.',
-                'Valid type annotations across primary modules.'
-              ]).map((item, i) => (
-                <li key={i} className="flex items-start space-x-1.5">
-                  <span className="text-emerald-500 font-bold mt-0.5">•</span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Priority Risks & Action Items */}
-          <div className="p-3 rounded-lg bg-rose-500/5 border border-rose-500/20 space-y-2">
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-rose-700 dark:text-rose-400 font-mono">
-              <AlertTriangle size={14} />
-              <span>Key Risk Factors & Action Items</span>
-            </div>
-            <ul className="space-y-1.5 text-[11px] text-slate-700 dark:text-zinc-300">
-              {(executiveSummary?.urgentActionItems && executiveSummary.urgentActionItems.length > 0 
-                ? executiveSummary.urgentActionItems 
-                : executiveSummary?.keyRisks || [
-                  `${issueCounts.critical} Critical security vulnerabilities detected.`,
-                  'Unhandled promise rejections and potential error boundary gaps.'
-                ]
-              ).map((item, i) => (
-                <li key={i} className="flex items-start space-x-1.5">
-                  <span className="text-rose-500 font-bold mt-0.5">•</span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-
       {/* Top Grid: Health Score Ring + Category Breakdowns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Main Score Ring Card */}
@@ -374,6 +269,144 @@ export default function DashboardView({
           iconColor="text-cyan-600 dark:text-cyan-400"
           onClick={() => setActiveModal('arch_issues')}
         />
+      </div>
+
+      {/* EXECUTIVE SUMMARY & DIAGNOSTIC SYNTHESIS SECTION - Placed right above Top Priority Findings */}
+      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+        {/* Header Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-zinc-800">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+              <Activity size={16} />
+            </div>
+            <div>
+              <h2 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider font-mono">
+                Executive Code Review &amp; Diagnostic Synthesis
+              </h2>
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                Domain security analysis, data-flow taint tracing, and architectural risk assessment
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border flex items-center gap-1.5 ${verdictBadgeColor}`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-current" />
+              Verdict: {verdict}
+            </span>
+          </div>
+        </div>
+
+        {/* Executive Headline & Commentary */}
+        <div className="space-y-2">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 leading-snug">
+            {executiveSummary?.headline || 'Critical security issues and unvalidated taint flows require immediate remediation before release.'}
+          </h3>
+          <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-950/70 border border-slate-200/80 dark:border-zinc-800/80 text-xs text-slate-700 dark:text-zinc-300 leading-relaxed font-sans">
+            {executiveSummary?.summary || `Security audit reveals high-priority vulnerabilities in Authentication and Data Access layers, specifically raw SQL string interpolations and unencrypted credential storage. Taint flow tracking detected untrusted user input paths propagating into backend execution sinks without parameterization.`}
+          </div>
+        </div>
+
+        {/* Domain Topics Breakdown Matrix */}
+        <div className="space-y-1.5">
+          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+            Domain Security &amp; Functional Topics
+          </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {(executiveSummary?.domainTopics && executiveSummary.domainTopics.length > 0 
+              ? executiveSummary.domainTopics
+              : [
+                {
+                  topic: 'Auth & Secrets Management',
+                  status: (securitySummary.hardcodedSecrets > 0 || securitySummary.insecureAuth > 0 ? 'critical' : 'safe') as 'critical' | 'warning' | 'safe',
+                  details: securitySummary.hardcodedSecrets > 0 ? 'Exposed credentials or token secrets in source code.' : 'Secure token handling and session storage.'
+                },
+                {
+                  topic: 'Data Access & Query Security',
+                  status: (securitySummary.sqlInjection > 0 ? 'critical' : 'safe') as 'critical' | 'warning' | 'safe',
+                  details: securitySummary.sqlInjection > 0 ? 'Raw SQL concatenation lacks parameterized bindings (CWE-89).' : 'Clean parameterized queries and ORM mappings.'
+                },
+                {
+                  topic: 'API Perimeter & Input Validation',
+                  status: (securitySummary.ssrf > 0 || securitySummary.xss > 0 ? 'warning' : 'safe') as 'critical' | 'warning' | 'safe',
+                  details: securitySummary.ssrf > 0 ? 'Outbound request destinations require whitelist validation.' : 'Incoming request boundary schema checks active.'
+                },
+                {
+                  topic: 'Error Boundaries & Async Resilience',
+                  status: (qualitySummary.errorHandlingGaps > 0 ? 'warning' : 'safe') as 'critical' | 'warning' | 'safe',
+                  details: qualitySummary.errorHandlingGaps > 0 ? `${qualitySummary.errorHandlingGaps} unhandled async exception boundaries.` : 'Robust error catching and fallback states.'
+                },
+                {
+                  topic: 'Supply Chain & Dependency Audit',
+                  status: (dependencies.some(d => d.riskLevel === 'critical') ? 'critical' : 'safe') as 'critical' | 'warning' | 'safe',
+                  details: dependencies.some(d => d.riskLevel === 'critical') ? 'Known CVE vulnerabilities present in package manifests.' : 'Third-party packages match clean vulnerability benchmarks.'
+                }
+              ]
+            ).map((item, idx) => (
+              <div
+                key={idx}
+                className="p-2.5 rounded-lg bg-slate-50/70 dark:bg-zinc-950/50 border border-slate-200/80 dark:border-zinc-800/80 space-y-1"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-800 dark:text-zinc-200 font-mono">
+                    {item.topic}
+                  </span>
+                  <span className={`w-2 h-2 rounded-full ${
+                    item.status === 'critical' ? 'bg-rose-500' : item.status === 'warning' ? 'bg-amber-500' : 'bg-emerald-500'
+                  }`} />
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-normal">
+                  {item.details}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 2-Column Strengths vs Risks */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+          {/* Key Strengths */}
+          <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20 space-y-2">
+            <div className="flex items-center space-x-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 font-mono">
+              <CheckCircle size={14} />
+              <span>Architectural Strengths</span>
+            </div>
+            <ul className="space-y-1.5 text-[11px] text-slate-700 dark:text-zinc-300">
+              {(executiveSummary?.keyStrengths || [
+                `Modular architecture with ${architectureNodes.length} component sub-systems.`,
+                'Clean separation of concerns between layers.',
+                'Valid type annotations across primary modules.'
+              ]).map((item, i) => (
+                <li key={i} className="flex items-start space-x-1.5">
+                  <span className="text-emerald-500 font-bold mt-0.5">•</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Priority Risks & Action Items */}
+          <div className="p-3 rounded-lg bg-rose-500/5 border border-rose-500/20 space-y-2">
+            <div className="flex items-center space-x-1.5 text-xs font-bold text-rose-700 dark:text-rose-400 font-mono">
+              <AlertTriangle size={14} />
+              <span>Key Risk Factors & Action Items</span>
+            </div>
+            <ul className="space-y-1.5 text-[11px] text-slate-700 dark:text-zinc-300">
+              {(executiveSummary?.urgentActionItems && executiveSummary.urgentActionItems.length > 0 
+                ? executiveSummary.urgentActionItems 
+                : executiveSummary?.keyRisks || [
+                  `${issueCounts.critical} Critical security vulnerabilities detected.`,
+                  'Unhandled promise rejections and potential error boundary gaps.'
+                ]
+              ).map((item, i) => (
+                <li key={i} className="flex items-start space-x-1.5">
+                  <span className="text-rose-500 font-bold mt-0.5">•</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       </div>
 
       {/* Top Priority Issues Preview */}

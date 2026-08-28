@@ -287,23 +287,50 @@ export const SAMPLE_ANALYSIS_RESULT: AnalysisResult = {
     errorHandlingGaps: 6
   },
   executiveSummary: {
-    verdict: 'Needs Attention',
-    headline: 'Critical SQL injection taint flows and hardcoded cryptographic credentials require immediate remediation before release.',
-    summary: 'Comprehensive static review evaluated 4 source files (154 lines of code) across TypeScript, Python, and SQL. Analysis identified 2 critical vulnerabilities including direct raw SQL concatenation in authentication handlers and a hardcoded JWT signature secret.',
+    verdict: 'Critical Risk',
+    headline: 'Critical vulnerabilities in Authentication and Data Access layers require immediate remediation.',
+    summary: 'The security audit identified raw SQL string concatenations in login workflows, hardcoded cryptographic JWT and AWS keys, and unsafe Python pickle deserialization. Incoming API requests lack parameter schema enforcement, exposing payment processing endpoints to authorization bypass.',
+    domainTopics: [
+      {
+        topic: 'Auth & Secrets Management',
+        status: 'critical',
+        details: 'Hardcoded JWT secret ("super_secret_jwt_key_12345") and plaintext AWS Access Keys discovered in source code.'
+      },
+      {
+        topic: 'Data Access & Query Security',
+        status: 'critical',
+        details: 'Raw string concatenation in loginUser executes unsanitized user inputs into database queries (CWE-89).'
+      },
+      {
+        topic: 'API Perimeter & Input Validation',
+        status: 'warning',
+        details: 'CORS configured with wildcard origin and credentials enabled; missing refund authorization checks.'
+      },
+      {
+        topic: 'Error Boundaries & Async Resilience',
+        status: 'warning',
+        details: 'Raw database exception stack traces leaked directly to HTTP clients in 500 response bodies.'
+      },
+      {
+        topic: 'Supply Chain & Dependency Audit',
+        status: 'critical',
+        details: 'Outdated Axios (CVE-2024-39338 SSRF) and jsonwebtoken (CVE-2022-23529 RCE) present in package manifest.'
+      }
+    ],
     keyStrengths: [
-      'Layered modular architecture with 6 identified architectural service nodes.',
-      'Strong separation of database schema definitions and domain models.',
-      'High reliability baseline with comprehensive database exception handling structure.'
+      'Layered microservice architecture separating web handlers from background reconciliation.',
+      'Comprehensive TypeScript typing across request and response handlers.',
+      'Integration with modern payment SDKs and relational database drivers.'
     ],
     keyRisks: [
-      '2 Critical security vulnerabilities with active taint paths reaching SQL sinks.',
-      'Vulnerable package dependencies (jsonwebtoken 8.3.0, express 4.16.1) in npm supply chain.',
-      '1 Architectural cyclic smell identified between payment controller and Python reconciliation engine.'
+      '3 Critical severity security vulnerabilities (SQL Injection, Secret Exposure, Pickle RCE).',
+      'Outdated dependencies with known high-severity CVE advisories in OSV databases.',
+      'N+1 query performance bottleneck in payment loop causing database connection exhaustion.'
     ],
     urgentActionItems: [
-      'Replace string concatenation in auth.ts:33 with parameterized SQL query ($1, $2).',
-      'Migrate hardcoded JWT_SECRET in auth.ts:26 to environment secret configuration.',
-      'Upgrade vulnerable jsonwebtoken package to >= 9.0.2 to fix CVE-2022-23529.'
+      'Refactor loginUser to use parameterized SQL queries ($1, $2).',
+      'Rotate exposed AWS and JWT secrets to environment variables.',
+      'Upgrade vulnerable axios and jsonwebtoken packages.'
     ],
     scanCoverage: {
       totalFilesScanned: 4,

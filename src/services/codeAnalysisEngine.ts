@@ -1043,12 +1043,111 @@ export async function runComprehensiveStaticAnalysis(
     ? 'Codebase demonstrates high security posture, robust data-flow sanitation, and clean architecture.'
     : 'Project is in healthy condition with minor optimization opportunities.';
 
-  const summary = `Comprehensive scan analyzed ${files.length} source files (${totalLines.toLocaleString()} lines of code), evaluating ${allSymbols.length} AST symbol definitions, ${allTaintFlows.length} taint paths, and ${dependencies.length} package dependencies. Discovered ${issues.length} total findings (${critCount} critical, ${highCount} high, ${medCount} medium).`;
+  // Build Domain Topic Breakdowns
+  const domainTopics: { topic: string; status: 'critical' | 'warning' | 'safe'; details: string }[] = [];
+  
+  // 1. Authentication & Secrets
+  if (secretCount > 0 || authCount > 0) {
+    domainTopics.push({
+      topic: 'Auth & Secrets Management',
+      status: secretCount > 0 ? 'critical' : 'warning',
+      details: secretCount > 0 
+        ? `${secretCount} hardcoded cryptographic tokens or credentials detected in source control.`
+        : 'Authentication tokens lack secure cookie flags or expiration controls.',
+    });
+  } else {
+    domainTopics.push({
+      topic: 'Auth & Secrets Management',
+      status: 'safe',
+      details: 'No plaintext credentials or high-entropy API secrets exposed in inspected modules.',
+    });
+  }
+
+  // 2. Data Access & Injection Defense
+  if (sqlCount > 0 || pathTraversalCount > 0) {
+    domainTopics.push({
+      topic: 'Data Access & Query Security',
+      status: 'critical',
+      details: `${sqlCount} raw SQL string concatenation sinks lack parameterized query binding.`,
+    });
+  } else {
+    domainTopics.push({
+      topic: 'Data Access & Query Security',
+      status: 'safe',
+      details: 'Database interactions leverage ORM parameterization with no direct SQL injection sinks.',
+    });
+  }
+
+  // 3. API Perimeter & Input Boundary
+  if (ssrfCount > 0 || xssCount > 0 || unsafeFileCount > 0) {
+    domainTopics.push({
+      topic: 'API Perimeter & Input Validation',
+      status: 'warning',
+      details: 'Untrusted network payload reach outbound HTTP clients or unescaped HTML render targets.',
+    });
+  } else {
+    domainTopics.push({
+      topic: 'API Perimeter & Input Validation',
+      status: 'safe',
+      details: 'Incoming request parameters pass structural boundary validation before downstream processing.',
+    });
+  }
+
+  // 4. Concurrency & Error Resilience
+  if (errorHandlingGapCount > 0) {
+    domainTopics.push({
+      topic: 'Error Boundaries & Async Resilience',
+      status: errorHandlingGapCount > 3 ? 'warning' : 'safe',
+      details: `${errorHandlingGapCount} unhandled promise rejections or silent catch blocks may cause unobserved task failures.`,
+    });
+  } else {
+    domainTopics.push({
+      topic: 'Error Boundaries & Async Resilience',
+      status: 'safe',
+      details: 'Proper try/catch boundaries and asynchronous error handling implemented across workflows.',
+    });
+  }
+
+  // 5. Supply Chain & Manifest Integrity
+  const critDeps = dependencies.filter((d) => d.riskLevel === 'critical' || d.riskLevel === 'high');
+  if (critDeps.length > 0) {
+    domainTopics.push({
+      topic: 'Supply Chain & Dependency Audit',
+      status: 'critical',
+      details: `${critDeps.length} third-party dependencies have known CVE vulnerabilities published in OSV registries.`,
+    });
+  } else {
+    domainTopics.push({
+      topic: 'Supply Chain & Dependency Audit',
+      status: 'safe',
+      details: 'All manifest packages match clean CVE benchmarks with no known high-severity advisory alerts.',
+    });
+  }
+
+  const topicCommentaryParts: string[] = [];
+  if (sqlCount > 0 || secretCount > 0) {
+    topicCommentaryParts.push(`Security audit reveals high-priority vulnerabilities in Authentication and Data Access layers, specifically raw SQL string interpolations and unencrypted credential storage.`);
+  }
+  if (allTaintFlows.length > 0) {
+    topicCommentaryParts.push(`Taint flow tracking detected ${allTaintFlows.length} untrusted user input paths propagating into backend execution sinks without parameterization.`);
+  }
+  if (errorHandlingGapCount > 0) {
+    topicCommentaryParts.push(`Resilience inspection flagged ${errorHandlingGapCount} unhandled async exception boundaries that could trigger silent service degradation.`);
+  }
+  if (critDeps.length > 0) {
+    topicCommentaryParts.push(`Dependency auditing identified ${critDeps.length} outdated third-party packages with active CVE advisories.`);
+  }
+  if (topicCommentaryParts.length === 0) {
+    topicCommentaryParts.push('The codebase maintains a robust defensive posture with solid data sanitization, strong authentication patterns, and resilient error handling across domain boundaries.');
+  }
+
+  const summary = topicCommentaryParts.join(' ');
 
   const executiveSummary = {
     verdict,
     headline,
     summary,
+    domainTopics,
     keyStrengths,
     keyRisks,
     urgentActionItems,

@@ -186,10 +186,17 @@ export interface DependencyItem {
   description: string;
 }
 
+export interface DomainTopicReview {
+  topic: string;
+  status: 'critical' | 'warning' | 'safe';
+  details: string;
+}
+
 export interface ExecutiveSummary {
   verdict: 'Excellent' | 'Good' | 'Needs Attention' | 'Critical Risk';
   headline: string;
   summary: string;
+  domainTopics?: DomainTopicReview[];
   keyStrengths: string[];
   keyRisks: string[];
   urgentActionItems: string[];

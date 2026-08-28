@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Project, AnalysisResult } from '../types';
 import ThemeToggle from './common/ThemeToggle';
 import GitHubUserMenu from './GitHubUserMenu';
+import { BrandIcon } from './common/BrandIcon';
 
 interface TopNavProps {
   project: Project | null;
@@ -76,15 +77,15 @@ export default function TopNav({
           onClick={() => onNavigate('landing')}
           className="flex items-center space-x-2.5 cursor-pointer group"
         >
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
-            <Code2 className="w-4.5 h-4.5 text-white" />
+          <div className="p-1 rounded-md text-slate-900 dark:text-white group-hover:scale-105 transition-transform">
+            <BrandIcon size={22} />
           </div>
           <div>
             <div className="flex items-center space-x-1.5">
-              <span className="font-bold text-slate-900 dark:text-white text-base tracking-tight font-sans">
+              <span className="font-extrabold text-slate-900 dark:text-white text-base tracking-tight font-sans">
                 Colens
               </span>
-              <span className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-slate-200 dark:border-zinc-700 font-mono">
+              <span className="bg-slate-100 dark:bg-zinc-800/80 text-slate-600 dark:text-zinc-400 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-slate-200/80 dark:border-zinc-800 font-mono">
                 SEC
               </span>
             </div>
