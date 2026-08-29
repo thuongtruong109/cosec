@@ -203,21 +203,6 @@ export default function LandingPage({ onStartUpload, onExploreDemo }: LandingPag
         <div className="flex items-center space-x-2 sm:space-x-2.5">
           <ThemeToggle showDropdown={true} />
           <GitHubUserMenu onOpenRepoSelect={onStartUpload} compact={true} />
-          
-          <button
-            onClick={onExploreDemo}
-            className="hidden sm:flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-          >
-            <span>Live Demo</span>
-          </button>
-
-          <button
-            onClick={onStartUpload}
-            className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-medium text-xs transition-all shadow-sm flex items-center space-x-1.5 cursor-pointer"
-          >
-            <span>Analyze Code</span>
-            <ArrowRight size={12} />
-          </button>
         </div>
       </header>
 
